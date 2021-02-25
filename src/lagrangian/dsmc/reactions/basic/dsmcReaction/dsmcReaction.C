@@ -74,7 +74,10 @@ dsmcReaction::dsmcReaction
 :
     mesh_(cloud.mesh()),
     cloud_(cloud),
-    reactWithLists_(false),
+    reactWithLists_
+    (
+        dict.lookupOrDefault<Switch>("reactWithLists", false)
+    ),
     reactionName_(dict.name().substr(1)),
     reactantIds_(),
     reactantTypes_(),

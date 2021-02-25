@@ -1,0 +1,1 @@
+../potentials/pairPotentials/derived/electrostaticPotentialModels/coulomb/coulomb.H

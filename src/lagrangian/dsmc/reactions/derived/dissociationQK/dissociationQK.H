@@ -73,7 +73,7 @@ protected:
         labelList nTotDissociationReactions_;
         labelList nDissociationReactionsPerTimeStep_;
        
-        List<scalarList> heatOfReactionDissociationJoules_;
+        scalarList heatOfReactionDissociationJoules_;
 
         //- Total volume of the numerical domain (NB: should not be there)
         scalar volume_;
@@ -88,8 +88,6 @@ protected:
             const dsmcParcel& p,
             const scalar translationalEnergy,
             label& vibModeDisso,
-            scalar& collisionEnergy,
-            scalar& totalReactionProbability,
             scalar& reactionProbability
         );
         
@@ -99,7 +97,7 @@ protected:
             dsmcParcel& q,
             const label nR,
             const label vibModeDisso,
-            scalar collisionEnergy
+            const scalar translationalEnergy
         );
 
 
@@ -134,10 +132,11 @@ public:
         (
             dsmcParcel& p,
             dsmcParcel& q,
-            const DynamicList<label>& candidateList,
-            const List<DynamicList<label> >& candidateSubList,
-            const label& candidateP,
-            const List<label>& whichSubCell
+	    const label candidateId
+            //const DynamicList<label>& candidateList,
+            //const List<DynamicList<label> >& candidateSubList,
+            //const label& candidateP,
+            //const List<label>& whichSubCell
         );
 
         void reaction(dsmcParcel& p, dsmcParcel& q);

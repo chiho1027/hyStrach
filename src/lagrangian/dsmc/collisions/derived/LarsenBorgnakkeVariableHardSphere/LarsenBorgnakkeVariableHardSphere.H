@@ -121,6 +121,16 @@ public:
             const scalar omegaPQ,
             const bool postReaction = false
         );
+
+        //- Apply LB energy redistribution only one mode will relaxa in a collision
+        virtual void redistributeOnlyOneMode
+        (
+            dsmcParcel& p,
+	    dsmcParcel& q,
+            scalar& translationalEnergy,
+            const scalar omegaPQ
+        );
+  
         
         //- Return the coefficients dictionary
         virtual const dictionary& coeffDict() const;

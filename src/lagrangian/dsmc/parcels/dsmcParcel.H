@@ -211,6 +211,9 @@ public:
             
             //- Return the characteristic dissociation level
             inline const labelList& charDissQuantumLevel() const;
+
+            //- Return total vibrational degree of freedom
+            inline scalar vibDof(const labelList& vibLevel) const;
             
             //- Return the vibrational energy of a given vibrational energy mode
             inline scalar eVib_m(const label mode, const label vibLevel) const;

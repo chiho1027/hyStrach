@@ -1,0 +1,1 @@
+../potentials/energyScalingFunction/derived/noScaling/noScaling.C

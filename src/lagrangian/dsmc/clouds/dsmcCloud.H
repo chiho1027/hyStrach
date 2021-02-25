@@ -454,8 +454,41 @@ public:
         (
             const scalar rotationalDof,
             const scalar ChiB
-        );
-        
+	);
+
+        // - Generate p particle degree of freedom when collid
+        scalar vibrationalDegreeOfFreedom
+	(
+	    const scalar TMacro,
+	    const scalar Ec,
+	    const scalar dofToTwo,
+	    const scalarList thetaVProduct
+	);
+
+        // - Generate bird 5.54 denominator sum
+        scalar temperatureFunction
+	(
+	    const scalar T,
+	    const scalarList thetaVProduct
+	);
+
+        scalar normalizedIncomGamma
+	(
+	 const scalar a,
+	 const scalar x
+	);
+  
+        // - Generate LB post-"reaction" vibrational energy 
+        void postReactionVibrationalRedistribution
+	(
+	 const label mode,
+	 const scalar reverseOmega,
+	 const scalar remainDOF,
+	 const scalarList& theta,
+	 labelList* vibLevel,
+	 scalar& Ec
+	);
+  
         // - Generate a LB post-collision vibrational energy
         label postCollisionVibrationalEnergyLevel
         (

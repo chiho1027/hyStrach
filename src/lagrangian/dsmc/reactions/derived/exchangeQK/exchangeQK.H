@@ -65,39 +65,113 @@ protected:
         dictionary propsDict_;
         
         //- Position of the molecule in the list of reactants
-        label posMolReactant_;
-        
+        label posAtomReactant_;
+
+        // numberOfExchange
+        label numberOfExchange_;
+ 
         //- Ids of the products
-        labelList productIdsExchange_;
+        List<labelList> productIdsExchange_;
         
         //- String to print for the exchange reaction
-        word exchangeStr_;
+        wordList exchangeStr_;
         
-        label nTotExchangeReactions_;
-        label nExchangeReactionsPerTimeStep_;
+        labelList nTotExchangeReactions_;
+        labelList nExchangeReactionsPerTimeStep_;
        
-        scalar heatOfReactionExchangeJoules_;
-        scalar aCoeff_, bCoeff_;
+        scalarList heatOfReactionExchangeJoules_;
+        List<scalarList> aCoeff_;
+        List<scalarList> bCoeff_;
 
         //- Total volume of the numerical domain (NB: should not be there)
         scalar volume_;
 
-
     // Protected Member Functions
 
         virtual void setProperties();
-        
+
+        scalar equilibriumDistribution
+	(
+	 const dsmcParcel& p,
+	 const scalar translationalEnergy,
+	 const scalar omegaPQ,
+	 const label nExIndex 
+	);
+
+        void postReactionVibrationalRedistributionNew
+	(
+	 const label postExciteMode,
+	 const scalar preCollisionEnergy,
+	 const scalar reverseOmega,
+	 const scalarList& thetaVProduct,
+	 labelList* vibLevel,
+	 scalar& Ec
+	);
+
+        label selectExciteMode
+	(
+	 const DynamicList<scalar>& excitePList
+	);
+
+
+        void postReactionVibrationalRedistribution
+	(
+	    const label excite,
+	    const scalarList thetaVProduct,
+	    const scalar TMacro,
+	    const scalar activationEnergy,
+	    const scalar reverseOmega,
+	    labelList& vibLevel,
+	    scalar& Ec
+	 );
+
+        scalar ki
+	(
+	    scalar chai,
+	    scalar j,
+	    const bool   largeThanEa,
+	    const scalar Ea,
+	    const scalar w
+	);
+
+        void kmaxFunc
+	(
+	    const scalar lnTwo,
+	    const scalar three,
+	    const scalar EaPrim,
+	    const scalar w,
+	    const scalar thetaPrim,
+	    scalar& kmax,
+	    scalar& jmax
+	 );
+        scalar jmaxP
+	(
+	    const scalar chai,
+	    const scalar j,
+	    const scalar EaPrim,
+	    const scalar w,
+	    const scalar thetaPrim
+	);
+
         void testExchange
         (
-            const dsmcParcel& p,
+	    const dsmcParcel& p,
             const scalar translationalEnergy,
             const scalar omegaPQ,
-            scalar& collisionEnergy,
-            scalar& totalReactionProbability,
-            scalar& reactionProbability
+	    const label nExIndex,
+	    scalar& reactionProbability,
+	    DynamicList<scalar>& reactPDiffVibMode
         );
-        
-        void exchange(dsmcParcel& p, dsmcParcel& q, scalar collisionEnergy);
+  
+        void exchange
+	(
+	 dsmcParcel& p,
+	 dsmcParcel& q,
+	 const scalar translationalEnergy,
+	 const label nExIndex,
+	 const DynamicList<scalar>& excitePList,
+	 const scalar forewardActivationEnergy
+	);
 
 
 public:
@@ -114,12 +188,12 @@ public:
             dsmcCloud& cloud,
             const dictionary& dict
         );
-    
-    
+
     // Destructor
     
         ~exchangeQK();
-    
+
+  
     
     // Member Functions
 
@@ -131,10 +205,11 @@ public:
         (
             dsmcParcel& p,
             dsmcParcel& q,
-            const DynamicList<label>& candidateList,
-            const List<DynamicList<label> >& candidateSubList,
-            const label& candidateP,
-            const List<label>& whichSubCell
+	    const label candidateId
+	    // const DynamicList<label>& candidateList,
+            //const List<DynamicList<label> >& candidateSubList,
+            //const label& candidateP,
+            //const List<label>& whichSubCell
         );
 
         void reaction(dsmcParcel& p, dsmcParcel& q);
@@ -151,7 +226,12 @@ public:
 
         virtual label nReactionsPerTimeStep() const
         {
-            return nExchangeReactionsPerTimeStep_;
+            return std::accumulate
+	    (
+	     nExchangeReactionsPerTimeStep_.begin(),
+	     nExchangeReactionsPerTimeStep_.end(),
+	     0
+	    );
         }
 
         virtual void outputResults(const label& counterIndex);

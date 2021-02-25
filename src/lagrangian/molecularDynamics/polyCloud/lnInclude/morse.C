@@ -1,0 +1,1 @@
+../potentials/pairPotentials/derived/pairPotentialModels/morse/morse.C

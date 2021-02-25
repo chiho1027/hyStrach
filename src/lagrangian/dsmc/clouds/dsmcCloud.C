@@ -733,8 +733,8 @@ Foam::dsmcCloud::~dsmcCloud()
 
 void Foam::dsmcCloud::evolve()
 {
-    evolve_moveAndCollide();
-    evolve_fields();
+  evolve_moveAndCollide();
+  evolve_fields();
 }
 
 
@@ -750,7 +750,7 @@ void Foam::dsmcCloud::evolve_moveAndCollide()
     {
         this->dumpParticlePositions();
     }
-
+    
     controllers_.controlBeforeMove();
     boundaries_.controlBeforeMove();
 
@@ -807,7 +807,7 @@ void Foam::dsmcCloud::evolve_fields()
     reactions_.outputData();
 
     fields_.calculateFields();
-
+    
     //timer = mesh_.time().elapsedCpuTime();
     fields_.writeFields();
     //Info<< "fields W" << tab << mesh_.time().elapsedCpuTime() - timer << " s" << endl;
@@ -819,7 +819,7 @@ void Foam::dsmcCloud::evolve_fields()
     boundaries_.outputResults();
 
     boundaryMeas_.outputResults();
-
+    
     trackingInfo_.clean();
     boundaryMeas_.clean();
     cellMeas_.clean();
@@ -1254,7 +1254,7 @@ Foam::scalar Foam::dsmcCloud::postCollisionRotationalEnergy
 
         do
         {
-            P = 0;
+            P = 0.0;
 
             energyRatio = rndGen_.sample01<scalar>();
 
@@ -1264,7 +1264,7 @@ Foam::scalar Foam::dsmcCloud::postCollisionRotationalEnergy
             }
             else if (ChiBMinusOne < SMALL)
             {
-                P = pow(1.0 - energyRatio, ChiAMinusOne);
+	      P = pow(1.0 - energyRatio, ChiAMinusOne);
             }
             else
             {
@@ -1287,6 +1287,153 @@ Foam::scalar Foam::dsmcCloud::postCollisionRotationalEnergy
     return energyRatio;
 }
 
+Foam::scalar Foam::dsmcCloud::vibrationalDegreeOfFreedom
+(
+ const scalar TMacro,
+ const scalar Ec,
+ const scalar dofToTwo,
+ const scalarList thetaVProduct
+ )
+{
+  if(thetaVProduct.size() == 0)
+  {
+    return 0.0;
+  }
+
+  scalar To  = 100.0;
+  scalar T1  = 200000.0;//uper temperautre
+  scalar m   = (To+T1)/2.0;
+  scalar tol = 0.01;//tolerence
+  const scalar EcToK = Ec/physicoChemical::k.value();
+  
+  while( fabs(EcToK/(dofToTwo + dsmcCloud::temperatureFunction(m, thetaVProduct))-m) >= tol )
+  {
+    if(  (EcToK/(dofToTwo + dsmcCloud::temperatureFunction( m, thetaVProduct))- m)
+	*(EcToK/(dofToTwo + dsmcCloud::temperatureFunction(To, thetaVProduct))-To) <0.0 )
+    {
+      T1 = m;
+    }
+    else
+    {
+      To = m; 
+    }
+    
+    m  = (To+T1)/2.0;
+  }
+
+  /*
+  scalar vibDof = 0.0;
+  forAll(thetaVProduct, i)
+  {
+    vibDof += 2.0*thetaVProduct[i]/TMacro/(exp(thetaVProduct[i]/TMacro)-1.0);
+    //vibDOF += 
+    //Info <<" a = " << 2.0*thetaVProduct[i]/TMacro/(exp(thetaVProduct[i]/TMacro)-1.0) << endl;
+    //Info << "b = " << 2.0*Ec/(thetaVProduct[i]*physicoChemical::k.value())*log(1.0+(thetaVProduct[i]*physicoChemical::k.value())/Ec) << endl;
+  }
+  */
+  //Info << " dof = " << vibDof << endl;
+  
+  return  2.0*dsmcCloud::temperatureFunction( m, thetaVProduct);//vibDof;//
+}
+
+
+Foam::scalar Foam::dsmcCloud::temperatureFunction
+(
+ const scalar T,
+ const scalarList thetaVProduct
+)
+{  
+  scalar total = 0.0;
+
+  forAll(thetaVProduct, i)
+  {
+    total += thetaVProduct[i]/T/(exp(thetaVProduct[i]/T)-1.0);
+  }
+  
+  return total;
+}
+
+Foam::scalar Foam::dsmcCloud::normalizedIncomGamma
+(
+ const scalar a,
+ const scalar x
+)
+{
+  scalar result = 0.0;
+  scalar c      = 1.0;
+  scalar cSum   = 1.0;
+  scalar r      = a;
+  scalar error  = 1e-10;
+
+  /*
+  if(x >10.0)
+  {
+    result = exp(-x)*pow(x, a-1)
+      *(1.0 + (a-1.0)/x + (a-1.0)*(a-2.0)/pow(x, 2.0));
+
+    if(result < VSMALL)
+      result = VSMALL;
+
+    return result;
+  }
+  */
+  
+  do
+  {
+    r    += 1.0;
+    c    *= x/r;
+    cSum += c;
+
+    if(c > 1e304)
+      break;
+  } while( c/cSum > error );
+  
+  result = 1.0 - exp(-x)*pow(x, a)/exp(lgamma(a+1.0))*cSum;
+  
+  return result;
+}
+
+void Foam::dsmcCloud::postReactionVibrationalRedistribution
+(
+ const label mode,
+ const scalar reverseOmega,
+ const scalar remainDOF,
+ const scalarList& theta,
+ labelList* vibLevel,
+ scalar& Ec
+)
+{
+  label j             = -1;
+  scalar kBByThetaVP = physicoChemical::k.value()*theta[mode];
+  label  iMaxProduct = Ec/kBByThetaVP;
+  if(iMaxProduct == 0)
+  {
+    (*vibLevel)[mode] = 0;    
+    return;
+  }
+  else
+  {
+    scalar func  = 0.0;
+    scalar ChiBMinusOne = remainDOF/2.0-1.0;
+
+    if(ChiBMinusOne == 0.0)
+    {
+      j = randomLabel(0, iMaxProduct);
+    }
+    else
+    {
+      do
+      {
+	j    = randomLabel(0, iMaxProduct);	  
+	func = pow(1.0 - j*kBByThetaVP/Ec ,ChiBMinusOne);	  
+      }while(func < rndGen_.sample01<scalar>());
+    }
+  }
+  
+  (*vibLevel)[mode] = j; 
+  //- Relative collision energy after vibrational energy redistribution
+  Ec -= j*kBByThetaVP; 
+}
 
 Foam::label Foam::dsmcCloud::postCollisionVibrationalEnergyLevel
 (
@@ -1400,7 +1547,7 @@ Foam::label Foam::dsmcCloud::postCollisionVibrationalEnergyLevel
             }
             else
             {
-                inverseVibrationalCollisionNumber = 1.0/Zv;   
+                inverseVibrationalCollisionNumber = 1.0/Zv;
             }
         }
         else

@@ -476,6 +476,19 @@ dsmcVolFields::dsmcVolFields
         mesh_,
         dimensionedScalar("zero", dimless, 0.0)
     ),
+    vibE_
+    (
+        IOobject
+        (
+            "vibE_"+ fieldName_,
+            mesh_.time().timeName(),
+            mesh_,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mesh_,
+        dimensionedScalar("zero", dimless, 0.0)
+    ),
     UMean_
     (
         IOobject
@@ -922,7 +935,7 @@ void dsmcVolFields::createField()
 
 
 void dsmcVolFields::calculateField()
-{ 
+{
     sampleCounter_++;
     
     rhoNInstantaneous_ = 0.0;
@@ -975,7 +988,7 @@ void dsmcVolFields::calculateField()
                     const scalar massBySqMagU = mass*(p.U() & p.U());
                     const scalar rotationalDof = cP.rotationalDegreesOfFreedom();
                     const scalarList& electronicEnergies = cP.electronicEnergyList();
-
+		    
                     scalar vibEn = 0.0;
                     forAll(cP.thetaV(), mode)
                     {
@@ -1071,7 +1084,7 @@ void dsmcVolFields::calculateField()
                 collisionSeparation_[cell] += 
                     cloud_.cellPropMeasurements().collisionSeparation()[cell];
                 nColls_[cell] += cloud_.cellPropMeasurements().nColls()[cell];
-                
+		
                 if (rhoNMean_[cell] > 1e-3)
                 {                  
                     const scalar cellVolume = mesh_.cellVolumes()[cell];
@@ -1161,8 +1174,8 @@ void dsmcVolFields::calculateField()
         
         sampleCounter_ = 0;
     }
-
-    if (time_.time().outputTime())
+    
+    if (time_.time().outputTime())  //|| time_.time().timeOutputValue() < time_.time().deltaT().value() )
     {
         const scalar nAvTimeSteps = nTimeSteps_;
         
@@ -1202,7 +1215,7 @@ void dsmcVolFields::calculateField()
             }
         }
         else
-        {                  
+        {
             const label nCells = mesh_.nCells();
             
             vibrationalT_.primitiveFieldRef() = 0.0;
@@ -1215,7 +1228,7 @@ void dsmcVolFields::calculateField()
             scalarField molecularMass(nCells, 0.0);
             scalarField particleCv(nCells, 0.0);
             scalarField totalvDofOverall(nCells, 0.0);
-            
+	    
             forAll(rhoNMean_, cell)
             {                
                 /*if (rhoNMean_[cell] > 1e-3) // TODO moved up already
@@ -1286,7 +1299,7 @@ void dsmcVolFields::calculateField()
                     rotationalDofMean_[cell] > SMALL
                   ? 2.0*rotationalEMean_[cell]/(kB*rotationalDofMean_[cell])
                   : 0.0
-                );
+                );		
 
                 //- Vibrational energy mode
                 scalarList degreesOfFreedomSpecies(typeIds_.size(), 0.0);
@@ -1371,7 +1384,7 @@ void dsmcVolFields::calculateField()
                 //- Electronic energy mode
                 scalar totalEDof = 0.0;
                 scalar elecT = 0.0;
-                    
+		
                 forAll(nParcels_, i) // TODO
                 {
                     /*const scalarList& electronicEnergies = 
@@ -1521,7 +1534,7 @@ void dsmcVolFields::calculateField()
                 }
 
                 electronicT_[cell] = elecT;*/
-                
+		
                 //- Overall temperature
                 overallT_[cell] = 
                     ( 
@@ -1532,7 +1545,17 @@ void dsmcVolFields::calculateField()
                     ) /
                     (3.0 + totalrDof + totalvDof_[cell] + totalEDof);
 
-                
+		/*
+		Info << "Dr = " << totalrDof << endl;
+		Info << "Dv = " <<totalvDof_[cell] << endl;
+		Info << "De = " <<totalEDof << endl;
+		Info << "Tt = " <<translationalT_[cell] << endl;
+		Info << "Tr = " <<rotationalT_[cell] << endl;
+		Info << "Tv = " <<vibrationalT_[cell] << endl;
+		Info << "Te = " <<electronicT_[cell] << endl;
+		Info << "Toverall  = " <<overallT_[cell] << endl;
+		*/
+
                 if (measureHeatFluxShearStress_)
                 {                    
                     if (rhoNMean_[cell] > SMALL)
@@ -1810,6 +1833,17 @@ void dsmcVolFields::calculateField()
                         }
                     }
 
+		    //////////////////////////new/////////////////
+		    vibE_[cell] = 0.0;
+		    forAll(typeIds_, i)
+                    {
+		      forAll(vibrationalETotal_[i], mode)
+		      {
+			vibE_[cell] += vibrationalETotal_[i][mode][cell]/nParcels_[i][cell];
+		      }
+                    }
+		    //////////////////////////new/////////////////
+		    
                     if (meanFreePath_[cell] < SMALL)
                     {
                         meanFreePath_[cell] = GREAT;
@@ -2252,6 +2286,9 @@ void dsmcVolFields::calculateField()
                             meanCollisionTimeTimeStepRatio_
                               .boundaryFieldRef()[j][k] = 
                                 meanCollisionTimeTimeStepRatio_[celli];
+			    ////////////////new//////////////////
+			    vibE_.boundaryFieldRef()[j][k] = vibE_[celli];
+			    ////////////////new//////////////////			    
                         }
                     }
                     
@@ -2314,12 +2351,13 @@ void dsmcVolFields::calculateField()
             {
                 meanFreePath_.write();
                 mfpCellRatio_.write();
-                //meanCollisionRate_.write();
+                meanCollisionRate_.write();
                 meanCollisionTime_.write();
                 meanCollisionTimeTimeStepRatio_.write();
-                //meanCollisionSeparation_.write();
-                //cr_.write();
-                //SOF_.write();
+                meanCollisionSeparation_.write(); //mcs
+                cr_.write();
+                SOF_.write();// mcs/mfp
+		vibE_.write();//////////////new//////////
             }
             
             if (measureClassifications_)

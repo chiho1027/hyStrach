@@ -98,10 +98,10 @@ inline Foam::dsmcParcel::constantProperties::constantProperties
     ),
     electronicDegeneracyList_
     (
-        dict.lookupOrDefault<labelList>
+        dict.lookupOrDefault< scalarList >
         (
             "electronicDegeneracyList",
-            labelList(1, 1)
+            scalarList(1, 1.0)
         )
     )
 {
@@ -422,6 +422,23 @@ Foam::dsmcParcel::constantProperties::eVib_tot(const labelList& vibLevel) const
     return vibEnergy;
 }
 
+inline Foam::scalar
+Foam::dsmcParcel::constantProperties::vibDof(const labelList& vibLevel) const
+{
+    label totalVibLevel = 0;
+    scalar vibDof = 0.0;
+    forAll(vibLevel, i)
+    {
+        totalVibLevel += vibLevel[i];
+    }
+
+    if(totalVibLevel > 0)
+    {
+      vibDof = 2.0*totalVibLevel*log(1.0/totalVibLevel + 1.0);
+    }
+    
+    return vibDof;
+}
 
 inline Foam::scalarList
 Foam::dsmcParcel::constantProperties::eVib(const labelList& vibLevel) const

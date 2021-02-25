@@ -1,0 +1,1 @@
+../potentials/pairPotentials/derived/pairPotentialModels/lennardJones/lennardJones.C

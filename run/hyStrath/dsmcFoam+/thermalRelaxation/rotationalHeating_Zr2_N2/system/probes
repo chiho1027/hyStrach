@@ -28,7 +28,6 @@ probes
         translationalT_N2cold
         rotationalT_N2cold
         overallT_N2cold
-        
         rhoN_N2cold
         meanCollisionTime_N2cold
     );

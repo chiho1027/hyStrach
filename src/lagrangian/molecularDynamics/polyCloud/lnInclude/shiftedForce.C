@@ -1,0 +1,1 @@
+../potentials/energyScalingFunction/derived/shiftedForce/shiftedForce.C

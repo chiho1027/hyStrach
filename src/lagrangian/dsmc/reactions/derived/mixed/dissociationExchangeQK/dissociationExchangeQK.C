@@ -100,10 +100,11 @@ void dissociationExchangeQK::reaction
 (
     dsmcParcel& p,
     dsmcParcel& q,
-    const DynamicList<label>& candidateList,
-    const List<DynamicList<label> >& candidateSubList,
-    const label& candidateP,
-    const List<label>& whichSubCell
+    const label candidateId
+    //const DynamicList<label>& candidateList,
+    //const List<DynamicList<label> >& candidateSubList,
+    //const label& candidateP,
+    //const List<label>& whichSubCell
 )
 {}
 
@@ -131,63 +132,93 @@ void dissociationExchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
         
         const scalar cRsqr = magSqr(p.U() - q.U());
         const scalar translationalEnergy = 0.5*mR*cRsqr;
-        
+
+	// dissociation initialized data
+        label vibModeDissoP = -1;
+        label vibModeDissoQ = -1;
+
+	// exchange initialized data
+	const label numberOfExchange = exchangeQK::numberOfExchange_;
+	
         //- Possible reactions:
         // 1. Dissociation of P
         // 2. Dissociation of Q
         // 3. Exchange
         
         scalar totalReactionProbability = 0.0;
-        scalarList reactionProbabilities(3, 0.0);
-        scalarList collisionEnergies(3, 0.0);
-        
-        label vibModeDissoP = -1;
-        label vibModeDissoQ = -1;
+        scalarList reactionProbabilities(2+numberOfExchange, 0.0);
         
         dissociationQK::testDissociation
         (
             p,
             translationalEnergy,
             vibModeDissoP,
-            collisionEnergies[0],
-            totalReactionProbability,
             reactionProbabilities[0]
         );
+	
+	totalReactionProbability += reactionProbabilities[0];
         
         dissociationQK::testDissociation
         (
             q,
             translationalEnergy,
             vibModeDissoQ,
-            collisionEnergies[1],
-            totalReactionProbability,
             reactionProbabilities[1]
         );
-        
-        if (exchangeQK::posMolReactant_ == 0)
-        {
-            exchangeQK::testExchange
-            (
-                p,
-                translationalEnergy,
-                omegaPQ,
-                collisionEnergies[2],
-                totalReactionProbability,
-                reactionProbabilities[2]
-            );
-        }
-        else
-        {
-            exchangeQK::testExchange
-            (
-                q,
-                translationalEnergy,
-                omegaPQ,
-                collisionEnergies[2],
-                totalReactionProbability,
-                reactionProbabilities[2]
-            );
-        }
+	
+	totalReactionProbability += reactionProbabilities[1];
+
+	for(label i=0; i<numberOfExchange; i++)
+	  {
+	    if (exchangeQK::posAtomReactant_ == 1)
+	    {
+		reactionProbabilities[2+i] = 
+		  exchangeQK::testExchange
+		  (
+		   p,
+		   translationalEnergy,
+		   omegaPQ,
+		   i
+		  );
+		totalReactionProbability += reactionProbabilities[2+i];
+	    }
+	    else if (exchangeQK::posAtomReactant_ == 0)
+	    {
+	      
+		reactionProbabilities[2+i] = 
+		  exchangeQK::testExchange
+		  (
+		   q,
+		   translationalEnergy,
+		   omegaPQ,
+		   i
+		  );
+		totalReactionProbability += reactionProbabilities[2+i];
+	    }
+	    else
+	    {
+	      const scalar probabilitiesP =
+		exchangeQK::testExchange
+		(
+		 p,
+		 translationalEnergy,
+		 omegaPQ,
+		 i
+		 );
+
+	      const scalar probabilitiesQ =
+		exchangeQK::testExchange
+		(
+		 q,
+		 translationalEnergy,
+		 omegaPQ,
+		 i
+		 );
+	      
+	      reactionProbabilities[2+i] = probabilitiesP + probabilitiesQ;
+	      totalReactionProbability += reactionProbabilities[2+i];
+	    }
+	  }// end for
         
         //- Decide if a reaction is to occur
         if (totalReactionProbability > cloud_.rndGen().sample01<scalar>())
@@ -195,7 +226,7 @@ void dissociationExchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
             //- A chemical reaction is to occur, normalise probabilities
             const scalarList normalisedProbabilities =
                 reactionProbabilities/totalReactionProbability;
-            
+	    
             //- Sort normalised probability indices in decreasing order
             //  for identical probabilities, random shuffle
             const labelList sortedNormalisedProbabilityIndices =
@@ -219,38 +250,36 @@ void dissociationExchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
                             //- Dissociation of P is to occur
                             dissociationQK::dissociateParticleByPartner
                             (
-                                p, q, 0, vibModeDissoP, collisionEnergies[i]
+                                p, q, i, vibModeDissoP, translationalEnergy
                             );
                             //- There can't be another reaction: break
                             break;
                         }
-                        
-                        if (i == 1)
+                        else if (i == 1)
                         {
                             //- Dissociation of Q is to occur
                             dissociationQK::dissociateParticleByPartner
                             (
-                                q, p, 1, vibModeDissoQ, collisionEnergies[i]
+                                q, p, i, vibModeDissoQ, translationalEnergy
                             );
                             //- There can't be another reaction: break
                             break;
                         }
-                        
-                        if (i == 2)
+			else
                         {
                             //- Exchange reaction
-                            if (exchangeQK::posMolReactant_ == 0)
+                            if (exchangeQK::posAtomReactant_ != 0)
                             {
                                 exchangeQK::exchange
                                 (
-                                    p, q, collisionEnergies[i]
+				 p, q, translationalEnergy, (i-2)
                                 );
                             }
                             else
                             {
                                 exchangeQK::exchange
                                 (
-                                    q, p, collisionEnergies[i]
+				 q, p, translationalEnergy, (i-2)
                                 );
                             }
                             //- There can't be another reaction: break
@@ -285,11 +314,11 @@ inline label dissociationExchangeQK::nReactionsPerTimeStep() const
 
 void dissociationExchangeQK::outputResults(const label& counterIndex)
 {
-    if (writeRatesToTerminal_)
-    {
+  if (writeRatesToTerminal_)
+  {
         dissociationQK::outputResults(counterIndex);
         exchangeQK::outputResults(counterIndex);
-    }
+  }
 }
 
 }

@@ -26,6 +26,7 @@ License
 #include "LarsenBorgnakkeVariableHardSphere.H"
 #include "constants.H"
 #include "addToRunTimeSelectionTable.H"
+#include "exchangeQK.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -77,7 +78,7 @@ Foam::LarsenBorgnakkeVariableHardSphere::LarsenBorgnakkeVariableHardSphere
         coeffDictLB_.lookupOrDefault<scalar>
         (
             "electronicRelaxationCollisionNumber",
-            500.0
+            0.0
         )
     )
 {
@@ -139,6 +140,8 @@ void Foam::LarsenBorgnakkeVariableHardSphere::collide
     
     redistribute(pP, translationalEnergy, omegaPQ);
     redistribute(pQ, translationalEnergy, omegaPQ);
+    //redistributeOnlyOneMode(pP, pQ, translationalEnergy ,omegaPQ);
+    
 
     //- Rescale the translational energy
     cR = sqrt(2.0*translationalEnergy/mR);
@@ -164,22 +167,21 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
         return void();
     }
     
-    const scalar inverseRotationalCollisionNumber =
-        1.0/rotationalRelaxationCollisionNumber_;
-    const scalar inverseElectronicCollisionNumber =
-        1.0/electronicRelaxationCollisionNumber_;
+    if(electronicRelaxationCollisionNumber_ != 0)
+    {
     
-    scalar& ERotP = p.ERot();
-    label& ELevelP = p.ELevel();
+      const scalar inverseElectronicCollisionNumber =
+	1.0/electronicRelaxationCollisionNumber_;   
+      label& ELevelP = p.ELevel();
     
-    //- Electronic energy mode for P
-    if (inverseElectronicCollisionNumber > cloud_.rndGen().sample01<scalar>())
-    { 
+      //- Electronic energy mode for P
+      if (inverseElectronicCollisionNumber > cloud_.rndGen().sample01<scalar>())
+      { 
         const label jMaxP = cP.nElectronicLevels();    
         const scalarList& EElistP = cP.electronicEnergyList();    
         const labelList& gListP = cP.electronicDegeneracyList(); 
         const scalar preCollisionEEleP = EElistP[ELevelP];
-    
+	
         //- Collision energy of particle P: relative translational energy 
         //   + pre-collision electronic energy
         const scalar EcP = translationalEnergy + preCollisionEEleP;
@@ -196,8 +198,9 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
                         
         //- Relative translational energy after electronic energy exchange
         translationalEnergy = EcP - EElistP[ELevelP];
+      }
     }
-            
+
     //- Vibrational energy mode for P
     if (cP.nVibrationalModes() > 0)
     {
@@ -206,18 +209,18 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
         const scalarList& ZrefP = cP.Zref();
         const scalarList& refTempZvP = cP.TrefZv();
         const scalarList& preCollisionEVibP = cP.eVib(p.vibLevel());
-        
-        forAll(thetaVP, i)
-        {
+	
+	forAll(thetaVP, i)
+	{
             //- Collision energy of particle P: relative translational energy 
             //    + pre-collision vibrational energy
             const scalar EcP = translationalEnergy + preCollisionEVibP[i]; 
 
             //- Maximum possible quantum level (equation 3, Bird 2010)
-            const label iMaxP = EcP/(physicoChemical::k.value()*thetaVP[i]); 
+            const label iMaxP = EcP/(physicoChemical::k.value()*thetaVP[i]);
 
             if (iMaxP > 0)
-            {       
+            {	      
                 p.vibLevel()[i] = 
                     cloud_.postCollisionVibrationalEnergyLevel
                     (
@@ -234,21 +237,21 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
                         invZvFormulation_,
                         p.cell()
                     );
-                        
+		
                 translationalEnergy = EcP - cP.eVib_m(i, p.vibLevel()[i]);
             }
-        }
-    }
-    
+       }
+    }    
+
     //- Rotational energy mode for P
-    const scalar rotationalDofP = cP.rotationalDegreesOfFreedom();
-        
+    const scalar rotationalDofP = cP.rotationalDegreesOfFreedom();        
     // Larsen Borgnakke rotational energy redistribution part. Using the serial
     // application of the LB method, as per the INELRS subroutine in Bird's
     // DSMC0R.FOR
     if (rotationalDofP > 0)
     {
-         /*scalar particleProbabilityP = 
+      /*
+         scalar particleProbabilityP = 
              ((zeta_T + 2.0*rotationalDofP)/(2.0*rotationalDofP))
              *(
                  1.0 - sqrt(
@@ -258,26 +261,119 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
                            )
               );
             
-         Info << "particleProbabilityP = " << particleProbabilityP << endl;*/
-       //if (particleProbabilityP > cloud_.rndGen().sample01<scalar>())  
-        
-        const scalar preCollisionERotP = ERotP;
-        
-        if (inverseRotationalCollisionNumber > cloud_.rndGen().sample01<scalar>())
-        {
-            const scalar EcP = translationalEnergy + preCollisionERotP;
-            const scalar ChiB = 2.5 - omegaPQ;
-            
-            const scalar energyRatio = 
-                cloud_.postCollisionRotationalEnergy(rotationalDofP, ChiB);
+         Info << "particleProbabilityP = " << particleProbabilityP << endl;
+	 //if (particleProbabilityP > cloud_.rndGen().sample01<scalar>())*/
 
-            ERotP = energyRatio*EcP;
-        
-            translationalEnergy = EcP - ERotP;
-        }
+      scalar& ERotP = p.ERot();
+      
+      const scalar inverseRotationalCollisionNumber =
+	1.0/(rotationalRelaxationCollisionNumber_);
+      
+      const scalar preCollisionERotP = ERotP;
+      
+      if (inverseRotationalCollisionNumber > cloud_.rndGen().sample01<scalar>())
+      {
+	  const scalar EcP = translationalEnergy + preCollisionERotP;
+	  const scalar ChiB = 2.5 - omegaPQ;
+          
+	  const scalar energyRatio = 
+	    cloud_.postCollisionRotationalEnergy(rotationalDofP, ChiB);
+	  
+	  ERotP = energyRatio*EcP;
+	  
+	  translationalEnergy = EcP - ERotP;
+      }
+      
     }
+    
 }
 
+void Foam::LarsenBorgnakkeVariableHardSphere::redistributeOnlyOneMode
+(
+    dsmcParcel& p,
+    dsmcParcel& q,
+    scalar& translationalEnergy,
+    const scalar omegaPQ
+)
+{
+    const label typeIdP = p.typeId();
+    const label typeIdQ = q.typeId();
+    const dsmcParcel::constantProperties& cP = cloud_.constProps(typeIdP);
+    const dsmcParcel::constantProperties& cQ = cloud_.constProps(typeIdQ);
+    
+    //- Vibrational energy mode for P
+    if (cP.nVibrationalModes() > 0)
+    {
+        const scalarList& thetaVP = cP.thetaV();  
+        const scalarList& thetaDP = cP.thetaD();
+        const scalarList& ZrefP = cP.Zref();
+        const scalarList& refTempZvP = cP.TrefZv();
+        const scalarList& preCollisionEVibP = cP.eVib(p.vibLevel());
+	
+	forAll(thetaVP, i)
+	{
+            //- Collision energy of particle P: relative translational energy 
+            //    + pre-collision vibrational energy
+            const scalar EcP = translationalEnergy + preCollisionEVibP[i]; 
+
+            //- Maximum possible quantum level (equation 3, Bird 2010)
+            const label iMaxP = EcP/(physicoChemical::k.value()*thetaVP[i]);
+
+            if (iMaxP > 0)
+            {	      
+                p.vibLevel()[i] = 
+                    cloud_.postCollisionVibrationalEnergyLevel
+                    (
+		        0,
+                        p.vibLevel()[i],
+                        iMaxP,
+                        thetaVP[i],
+                        thetaDP[i],
+                        refTempZvP[i],
+                        omegaPQ,
+                        ZrefP[i],
+                        EcP,
+                        vibrationalRelaxationCollisionNumber_,
+                        invZvFormulation_,
+                        p.cell()
+                    );
+		
+                translationalEnergy = EcP - cP.eVib_m(i, p.vibLevel()[i]);
+            }
+       }
+    }    
+
+    //- Rotational energy mode for P
+    const scalar rotationalDofP = cP.rotationalDegreesOfFreedom();        
+    // Larsen Borgnakke rotational energy redistribution part. Using the serial
+    // application of the LB method, as per the INELRS subroutine in Bird's
+    // DSMC0R.FOR
+    if (rotationalDofP > 0)
+    {
+
+      scalar& ERotP = p.ERot();
+      
+      const scalar inverseRotationalCollisionNumber =
+	1.0/(rotationalRelaxationCollisionNumber_);
+      
+      const scalar preCollisionERotP = ERotP;
+      
+      if (inverseRotationalCollisionNumber > cloud_.rndGen().sample01<scalar>())
+      {
+	  const scalar EcP = translationalEnergy + preCollisionERotP;
+	  const scalar ChiB = 2.5 - omegaPQ;
+          
+	  const scalar energyRatio = 
+	    cloud_.postCollisionRotationalEnergy(rotationalDofP, ChiB);
+	  
+	  ERotP = energyRatio*EcP;
+	  
+	  translationalEnergy = EcP - ERotP;
+      }
+      
+    }
+    
+}
 
 const Foam::dictionary&
 Foam::LarsenBorgnakkeVariableHardSphere::coeffDict() const

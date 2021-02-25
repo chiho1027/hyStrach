@@ -71,7 +71,7 @@ void dissociationQK::setProperties()
             moleculeFound = true;
             
             heatOfReactionDissociationJoules_[r] = physicoChemical::k.value()
-                *cloud_.constProps(reactantIds_[r]).thetaD();
+                *cloud_.constProps(reactantIds_[r]).thetaD()[0];
         }
     }
     
@@ -176,7 +176,8 @@ void dissociationQK::setProperties()
                     << productsDissociation[r][p] << nl 
                     << exit(FatalError);
             }
-            
+
+	    /*
             //- Check that products of polyatomic particle are 
             //  diatomic/polyatomic molecules
             if (
@@ -192,6 +193,7 @@ void dissociationQK::setProperties()
                     << productsDissociation[r][p] << nl 
                     << exit(FatalError);
             }
+	    */
         }
     }
 }
@@ -202,46 +204,40 @@ void dissociationQK::testDissociation
     const dsmcParcel& p,
     const scalar translationalEnergy,
     label& vibModeDisso,
-    scalar& collisionEnergy,
-    scalar& totalReactionProbability,
     scalar& reactionProbability
 )
 {
     const label typeIdP = p.typeId();
-    
-    if
-    (
-        cloud_.constProps(typeIdP).type() == 20
-     or cloud_.constProps(typeIdP).type() == 30
-    )
+
+    if( (cloud_.constProps(typeIdP).type() >= 20) )
     {
         const labelList& vibLevelP = p.vibLevel();
-                
+	
         forAll(vibLevelP, m)
-        {
+	{
+	  //label m = 0;//cloud_.rndGen().position<label>(0, vibLevelP.size()-1);
+	  
             const scalar thetaVP = cloud_.constProps(typeIdP).thetaV_m(m);
             const scalar EVibP_m = cloud_.constProps(typeIdP).eVib_m(m, vibLevelP[m]);
-            const label idP = cloud_.constProps(typeIdP).charDissQuantumLevel_m(m);    
+            const label  idP = cloud_.constProps(typeIdP).charDissQuantumLevel_m(m);    
 
-            collisionEnergy = translationalEnergy + EVibP_m;
+            const scalar collisionEnergy = translationalEnergy + EVibP_m;
             const label imaxP = collisionEnergy/(physicoChemical::k.value()*thetaVP);
         
             //- Condition for the dissociation of the molecule P, mode m
             if (imaxP > idP)
-            {
+            {	      
                 //- Add reaction to the list of competing reactions with 
                 //  probability reactionProbability
                 reactionProbability = 1.0;
-                totalReactionProbability += reactionProbability;
                 //- The molecule dissociates in the vibrational energy mode
-                //  vibModeDisso = m
                 vibModeDisso = m;
-                break;
+		break;
             }
-        }
+	}
     }
-}
 
+}
 
 void dissociationQK::dissociateParticleByPartner
 (
@@ -249,7 +245,7 @@ void dissociationQK::dissociateParticleByPartner
     dsmcParcel& q,
     const label nR,
     const label vibModeDisso,
-    scalar collisionEnergy
+    const scalar translationalEnergy
 )
 {
     const label typeIdP = p.typeId();
@@ -260,38 +256,44 @@ void dissociationQK::dissociateParticleByPartner
     {
         nReac = 0;
     }
-        
-    //- Dissociation of parcel p
+
+    //- Dissociation of parcel p !!!!!
     nTotDissociationReactions_[nReac]++;
     nDissociationReactionsPerTimeStep_[nReac]++;
     
     if (allowSplitting_)
     {
         relax_ = false;
-        
-        //- The collision energy is being subtracted the heat of reaction
-        collisionEnergy -= heatOfReactionDissociationJoules_[nR][vibModeDisso];
-        
+
+	const scalar EVibP_disso = cloud_.constProps(typeIdP).eVib_m
+	  (
+	   vibModeDisso,
+	   p.vibLevel()[vibModeDisso]
+	   );
+ 
         const scalar omegaPQ =
             0.5
             *(
                   cloud_.constProps(typeIdP).omega()
                 + cloud_.constProps(typeIdQ).omega()
             );
-            
+
+	//- The collision energy is being subtracted the heat of reaction
+        scalar collisionEnergy = translationalEnergy + EVibP_disso
+	  // - heatOfReactionDissociationJoules_[nReac][vibModeDisso];
+	  - heatOfReactionDissociationJoules_[nReac];
+
         //- Energy redistribution for particle Q
         cloud_.binaryCollision().redistribute
         (
             q, collisionEnergy, omegaPQ, true
         );
-        
+
         const scalar mP = cloud_.constProps(typeIdP).mass();
         const scalar mQ = cloud_.constProps(typeIdQ).mass();
         const scalar mR = mP*mQ/(mP + mQ);
-        
         scalar relVelNonDissoParticle = sqrt(2.0*collisionEnergy/mR);
-        
-        //- Post-collision velocities for P (pre-reaction) and Q
+
         cloud_.binaryCollision().postCollisionVelocities
         (
             typeIdP,
@@ -299,59 +301,57 @@ void dissociationQK::dissociateParticleByPartner
             p.U(),
             q.U(),
             relVelNonDissoParticle
-        );
-        
+        );	
+
         //- Post-reaction
-        const label typeId1 = productIdsDissociation_[nR][0];
-        const label typeId2 = productIdsDissociation_[nR][1];
-        
+        const label typeId1 = productIdsDissociation_[nReac][0];
+        const label typeId2 = productIdsDissociation_[nReac][1];
+   
         //- Mass of products 1 and 2
         const scalar mP1 = cloud_.constProps(typeId1).mass();
         const scalar mP2 = cloud_.constProps(typeId2).mass();
         const scalar mRproducts = mP1*mP2/(mP1 + mP2);
-        
+
         //- Energy left for the 2 products
         const scalar ERotP = p.ERot();
         const scalar EVibP_tot =
             cloud_.constProps(typeIdP).eVib_tot
             (
                 p.vibLevel()
-            ); 
-            
-        const scalar EVibP_mdisso =
-            cloud_.constProps(typeIdP).eVib_m
-            (
-                vibModeDisso, 
-                p.vibLevel()[vibModeDisso]
             );
-        const scalar EVibP_nondisso = EVibP_tot - EVibP_mdisso; 
-        const scalar EEleP = cloud_.constProps(typeIdP).electronicEnergyList()[p.ELevel()];
+
+	//remain vibrational energy
+        const scalar EVibP_nondisso = EVibP_tot - EVibP_disso;
+
         //- Assumption: no energy redistribution for the particle being split
-        //  All the remaining energy is stored in the translational mode
-        const scalar translationalEnergyLeft = ERotP + EVibP_nondisso + EEleP;
+        //  All the remaining energy is stored in the translational mode	
+        const scalar translationalEnergyLeft = ERotP + EVibP_nondisso;
+
+	
+
         const scalar cRproducts = sqrt(2.0*translationalEnergyLeft/mRproducts);
-        
-        vector UP2 = vector::zero;
-        cloud_.binaryCollision().postCollisionVelocities
-        (
-            typeId1,
-            typeId2,
-            p.U(),
-            UP2,
-            cRproducts
-        );
+	vector UP2 = vector::zero;
+	cloud_.binaryCollision().postReactionVelocities
+	(
+	 typeId1,
+	 typeId2,
+	 p.U(),
+	 UP2,
+	 cRproducts
+	 );
 
         // Molecule P dissociates
         // The molecule is first transformed into the first product ...
-        p.typeId() = typeId1;
-        p.vibLevel().setSize
-        (
-            cloud_.constProps(typeId1).nVibrationalModes(),
-            0
-        );
-        p.ERot() = 0.0;
-        p.ELevel() = 0;
-        
+	const labelList product1_vibLevel
+	(
+	 cloud_.constProps(typeId1).nVibrationalModes(),
+	 0
+	);
+        p.typeId()   = typeId1;
+        p.vibLevel() = product1_vibLevel;
+        p.ERot()     = 0.0;
+        p.ELevel()   = 0;
+		
         // ... and a second product is then inserted in the same cell
         const scalar product2_ERot = 0.0;
         const labelList product2_vibLevel
@@ -360,7 +360,7 @@ void dissociationQK::dissociateParticleByPartner
             0
         );
         const label product2_ELevel = 0;
-        
+
         cloud_.addNewParcel
         (
             p.position(),
@@ -376,6 +376,17 @@ void dissociationQK::dissociateParticleByPartner
             p.classification(),
             product2_vibLevel
         );
+
+	/*
+	scalar postE = 0.5*cloud_.constProps(typeId2).mass()*magSqr(UP2)
+	  +0.5*cloud_.constProps(p.typeId()).mass()*magSqr(p.U())
+	  +0.5*cloud_.constProps(q.typeId()).mass()*magSqr(q.U())
+	  +p.ERot()+q.ERot()+product2_ERot
+	  +cloud_.constProps(p.typeId()).eVib_tot(p.vibLevel())
+	  +cloud_.constProps(q.typeId()).eVib_tot(q.vibLevel())
+	  +cloud_.constProps(typeId2).eVib_tot(product2_vibLevel);
+	Info << "postE = " << postE << endl;
+	*/
     }
 }
 
@@ -442,7 +453,7 @@ bool dissociationQK::tryReactMolecules
     const label& typeIdQ
 )
 {
-    //- Function used when setting the pair addressing matrix
+  //- Function used when setting the pair addressing matrix
     const label reactantPId = findIndex(reactantIds_, typeIdP);
     const label reactantQId = findIndex(reactantIds_, typeIdQ);
 
@@ -471,10 +482,11 @@ void dissociationQK::reaction
 (
     dsmcParcel& p,
     dsmcParcel& q,
-    const DynamicList<label>& candidateList,
-    const List<DynamicList<label> >& candidateSubList,
-    const label& candidateP,
-    const List<label>& whichSubCell
+    const label candidateId
+    //const DynamicList<label>& candidateList,
+    //const List<DynamicList<label> >& candidateSubList,
+    //const label& candidateP,
+    //const List<label>& whichSubCell
 )
 {}
 
@@ -486,12 +498,22 @@ void dissociationQK::reaction(dsmcParcel& p, dsmcParcel& q)
     
     const label typeIdP = p.typeId();
     const label typeIdQ = q.typeId();
-    
+ 
     //- Dissociation reaction AB + M --> A + B + M 
     //  If P is the first reactant AB
     //  NB: Q is necessarily M otherwise this class would not have been selected
     if (typeIdP == reactantIds_[0]) 
-    { 
+    {
+      /*
+      scalar preE = 0.5*cloud_.constProps(p.typeId()).mass()*magSqr(p.U())
+	+0.5*cloud_.constProps(q.typeId()).mass()*magSqr(q.U())
+	+p.ERot()+q.ERot()
+	+cloud_.constProps(p.typeId()).eVib_tot(p.vibLevel())
+	+cloud_.constProps(q.typeId()).eVib_tot(q.vibLevel())
+	- heatOfReactionDissociationJoules_[0];
+      Info << "preE = " << preE << endl;
+      */
+      
         const scalar mP = cloud_.constProps(typeIdP).mass();
         const scalar mQ = cloud_.constProps(typeIdQ).mass();
         const scalar mR = mP*mQ/(mP + mQ);
@@ -505,51 +527,49 @@ void dissociationQK::reaction(dsmcParcel& p, dsmcParcel& q)
         
         scalar totalReactionProbability = 0.0;
         scalarList reactionProbabilities(2, 0.0);
-        scalarList collisionEnergies(2, 0.0);
         
         label vibModeDissoP = -1;
         label vibModeDissoQ = -1;
-        
+	
         testDissociation
         (
             p,
             translationalEnergy,
             vibModeDissoP,
-            collisionEnergies[0],
-            totalReactionProbability,
             reactionProbabilities[0]
         );
-        
+	totalReactionProbability += reactionProbabilities[0];
+
         testDissociation
         (
             q,
             translationalEnergy,
             vibModeDissoQ,
-            collisionEnergies[1],
-            totalReactionProbability,
             reactionProbabilities[1]
-        );
-        
+	 );
+	
+	totalReactionProbability += reactionProbabilities[1];
+	
         //- Decide if a reaction is to occur
         if (totalReactionProbability > cloud_.rndGen().sample01<scalar>())
         {
             //- A chemical reaction is to occur, normalise probabilities
             const scalarList normalisedProbabilities =
                 reactionProbabilities/totalReactionProbability;
-            
+
             //- Sort normalised probability indices in decreasing order
             //  for identical probabilities, random shuffle
             const labelList sortedNormalisedProbabilityIndices =
                 decreasing_sort_indices(normalisedProbabilities);
             scalar cumulativeProbability = 0.0;
-            
+    
             forAll(sortedNormalisedProbabilityIndices, idx)
             {                
                 const label i = sortedNormalisedProbabilityIndices[idx];
-                
+
                 //- If current reaction can't occur, end the search
                 if (normalisedProbabilities[i] > SMALL)
-                {
+		  {
                     cumulativeProbability += normalisedProbabilities[i];
                     
                     if (cumulativeProbability > cloud_.rndGen().sample01<scalar>())
@@ -560,18 +580,19 @@ void dissociationQK::reaction(dsmcParcel& p, dsmcParcel& q)
                             //- Dissociation of P is to occur
                             dissociateParticleByPartner
                             (
-                                p, q, i, vibModeDissoP, collisionEnergies[i]
+                                p, q, i, vibModeDissoP, translationalEnergy
                             );
                             //- There can't be another reaction: break
                             break;
                         }
-                        
+
+			
                         if (i == 1)
                         {
                             //- Dissociation of Q is to occur
                             dissociateParticleByPartner
                             (
-                                q, p, i, vibModeDissoQ, collisionEnergies[i]
+                                q, p, i, vibModeDissoQ, translationalEnergy
                             );
                             //- There can't be another reaction: break
                             break;
@@ -605,7 +626,7 @@ void dissociationQK::outputResults(const label& counterIndex)
             
         volume_ = 0.0;
 
-        labelList molsReactants(2, 0);
+        scalarList molsReactants(2, 0.0);
 
         forAll(cellOccupancy, c)
         {
@@ -648,7 +669,7 @@ void dissociationQK::outputResults(const label& counterIndex)
                 (
                     counterIndex*deltaT
                    *numberDensities[0]*numberDensities[0]
-                   *volume
+                   *volume*2.0
                 );
         }
         else if (numberDensities[0] > 0.0 && numberDensities[1] > 0.0)
@@ -658,7 +679,7 @@ void dissociationQK::outputResults(const label& counterIndex)
                     counterIndex*deltaT
                    *numberDensities[0]*numberDensities[1]
                    *volume
-                );
+		 );
         }
         
         for (label k=0; k<2; k++)
@@ -682,6 +703,7 @@ void dissociationQK::outputResults(const label& counterIndex)
             }    
         }
     }
+    /*
     else
     {
         labelList nTotDissociationReactions = nTotDissociationReactions_;   
@@ -708,6 +730,7 @@ void dissociationQK::outputResults(const label& counterIndex)
              }
         }
     }
+    */
 
     nDissociationReactionsPerTimeStep_ = 0;
 }

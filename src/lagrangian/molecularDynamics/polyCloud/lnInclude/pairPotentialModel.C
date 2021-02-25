@@ -1,0 +1,1 @@
+../potentials/pairPotentials/basic/pairPotentialModel/pairPotentialModel.C

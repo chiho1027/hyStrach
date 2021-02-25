@@ -96,6 +96,7 @@ protected:
         volScalarField velocityError_;
         volScalarField temperatureError_;
         volScalarField pressureError_;
+        volScalarField vibE_; //new
         volVectorField UMean_;
         volVectorField fD_;
         volVectorField heatFluxVector_;

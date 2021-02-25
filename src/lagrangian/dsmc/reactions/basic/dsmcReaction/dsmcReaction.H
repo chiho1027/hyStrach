@@ -154,10 +154,11 @@ public:
         (
             dsmcParcel& p,
             dsmcParcel& q,
-            const DynamicList<label>& candidateList,
-            const List<DynamicList<label>>& candidateSubList,
-            const label& candidateP,
-            const List<label>& whichSubCell
+	    const label candidateId
+            //const DynamicList<label>& candidateList,
+            //const List<DynamicList<label>>& candidateSubList,
+            //const label& candidateP,
+            //const List<label>& whichSubCell
         ) = 0;
         
         const bool& relax() const;
