@@ -86,7 +86,7 @@ private:
     scalarField totalPressure_;
     scalarField totalRotationalEnergy_;
     scalarField totalRotationalDof_;
-    List <scalarField> totalVibrationalEnergy_;
+    List<List<scalarField>> totalVibrationalEnergy_;
     List <scalarField> vibT_;
     List <scalarField> vDof_;
     scalarField velSqrMeanX_;

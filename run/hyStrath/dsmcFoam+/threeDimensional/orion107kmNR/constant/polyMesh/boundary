@@ -15,20 +15,34 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-2
+4
 (
     symmetry
     {
         type            symmetry;
         inGroups        1(symmetry);
-        nFaces          2552;
-        startFace       269392;
+        nFaces          2228;
+        startFace       175784;
     }
     inlet
     {
         type            patch;
-        nFaces          9896;
-        startFace       271944;
+        nFaces          1442;
+        startFace       178012;
+    }
+    orion
+    {
+        type            wall;
+        inGroups        2(orion wall);
+        nFaces          1990;
+        startFace       179454;
+    }
+    spline
+    {
+        type            patch;
+        inGroups        1(spline);
+        nFaces          3716;
+        startFace       181444;
     }
 )
 

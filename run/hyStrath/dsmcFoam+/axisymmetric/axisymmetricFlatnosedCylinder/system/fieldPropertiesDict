@@ -25,7 +25,7 @@ dsmcFields
        timeProperties
        {
        	  timeOption      write;
-             resetAtOutput       off;
+             resetAtOutput       on;
        }
 
        dsmcVolFieldsProperties

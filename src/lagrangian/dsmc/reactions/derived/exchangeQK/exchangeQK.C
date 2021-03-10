@@ -1177,28 +1177,6 @@ void exchangeQK::exchange
 	 vibLevel,//post
 	 collisionEnergy//post
 	);
-
-	forAll(productExciteP, u)
-	{
-	  if(u == excite)
-	  {
-	    continue;
-	  }
-	  else
-	  {	    
-	    postReactionVibrationalRedistributionNew
-	    (
-	     u,
-	     translationalEnergy+(p.vibLevel()[u])*physicoChemical::k.value()*cloud_.constProps(typeIdP).thetaV()[u]-forewardActivationEnergy,//pre
-	     reverseOmega,//post
-	     theta,//post
-	     vibLevel,//post
-	     collisionEnergy//post
-	     );	    
-	  }
-	}
-
-	
 	
 	// vibMole
 	/*
@@ -1268,6 +1246,7 @@ void exchangeQK::exchange
 	}
 	*/
 
+	/*
 	if(postExciteMode != 0)
         {
 	//+(p.vibLevel()[0])*physicoChemical::k.value()*cloud_.constProps(typeIdP).thetaV()[0]
@@ -1286,7 +1265,7 @@ void exchangeQK::exchange
 		 << endl;
 	  }
 	}
-	
+	*/
 
 	// sample other vibrational mode
 	/*
@@ -1332,7 +1311,6 @@ void exchangeQK::exchange
 	*/
 
 	// sample other vibrational mode by boltzman distribution
-	/*
 	label j = 0;
 	forAll(productExciteP, u)
 	{
@@ -1382,16 +1360,14 @@ void exchangeQK::exchange
 	    continue;
 	  }
 	}//end for		
-	*/
 
-	/*
+	
 	vibLevelMole[postExciteMode] = -1; 
 	
 	Info << "bird = "
 	     << vibLevelMole[0] << " "
 	     << vibLevelMole[1] << " "
-	     << vibLevelMole[2] << endl;
-	*/
+	     << vibLevelMole[2] << endl;	
 	
 	  return;	
 

@@ -1,0 +1,39 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v1706                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "0.4536/uniform";
+    object      volFieldsMethod_mixture;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+rhoNMean        60268 { 0 };
+
+rhoMMean        60268 { 0 };
+
+linearKEMean    60268 { 0 };
+
+momentumMean    60268 { ( 0 0 0 ) };
+
+rotationalEMean 60268 { 0 };
+
+rotationalDofMean 60268 { 0 };
+
+vibrationalETotal 2 ( 1 ( 60268 { 0 } ) 1 ( 60268 { 0 } ) );
+
+nParcels        2 ( 60268 { 0 } 60268 { 0 } );
+
+rhoNMeanInt     60268 { 0 };
+
+nTimeSteps      0;
+
+
+// ************************************************************************* //

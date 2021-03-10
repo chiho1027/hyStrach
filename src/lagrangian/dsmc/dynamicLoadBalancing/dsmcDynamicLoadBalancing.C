@@ -226,8 +226,8 @@ void dsmcDynamicLoadBalancing::perform(const int noRefinement)
             Foam::system("reconstructPar -latestTime");
             Foam::system("rm -r processor*");
             
-            Foam::system("var=`foamListTimes -noZero`; if [ -z ${var+x} ]; then echo 'error'; else decomposeDSMCLoadBalancePar -force -latestTime -copyUniform; fi");
-            
+            Foam::system("var=`foamListTimes -noZero`; if [ -z ${var+x} ]; then echo 'error'; else decomposeDSMCLoadBalancePar -force -latestTime; fi");// -copyUniform; fi");
+	    
             // Backup folders must be stored in resultFolders and moved back
             // as the simulation finishes
             //system("foamListTimes -rm"); // no backup alternative but risky

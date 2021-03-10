@@ -476,6 +476,7 @@ dsmcVolFields::dsmcVolFields
         mesh_,
         dimensionedScalar("zero", dimless, 0.0)
     ),
+    /*/////////////new/////////////////
     vibE_
     (
         IOobject
@@ -489,6 +490,7 @@ dsmcVolFields::dsmcVolFields
         mesh_,
         dimensionedScalar("zero", dimless, 0.0)
     ),
+    *//////////////new////////////////////
     UMean_
     (
         IOobject
@@ -1078,11 +1080,12 @@ void dsmcVolFields::calculateField()
             //Info<< "fields myCal" << tab << mesh_.time().elapsedCpuTime() - timer << " s" << endl; // TODO VINCENT
             
             //- Obtain collision quality measurements and mixture translational
-            //  temperature
+            //  temperature	    
             forAll(cloud_.cellPropMeasurements().collisionSeparation(), cell)
             {
                 collisionSeparation_[cell] += 
                     cloud_.cellPropMeasurements().collisionSeparation()[cell];
+		
                 nColls_[cell] += cloud_.cellPropMeasurements().nColls()[cell];
 		
                 if (rhoNMean_[cell] > 1e-3)
@@ -1833,7 +1836,7 @@ void dsmcVolFields::calculateField()
                         }
                     }
 
-		    //////////////////////////new/////////////////
+		    /*//////////////////////////new/////////////////
 		    vibE_[cell] = 0.0;
 		    forAll(typeIds_, i)
                     {
@@ -1842,7 +1845,7 @@ void dsmcVolFields::calculateField()
 			vibE_[cell] += vibrationalETotal_[i][mode][cell]/nParcels_[i][cell];
 		      }
                     }
-		    //////////////////////////new/////////////////
+		    *///////////////////////////new/////////////////
 		    
                     if (meanFreePath_[cell] < SMALL)
                     {
@@ -2286,8 +2289,11 @@ void dsmcVolFields::calculateField()
                             meanCollisionTimeTimeStepRatio_
                               .boundaryFieldRef()[j][k] = 
                                 meanCollisionTimeTimeStepRatio_[celli];
+			    ///////////////new////////////////////
+			    meanCollisionSeparation_.boundaryFieldRef()[j][k] =
+			      meanCollisionSeparation_[celli];
 			    ////////////////new//////////////////
-			    vibE_.boundaryFieldRef()[j][k] = vibE_[celli];
+			    //vibE_.boundaryFieldRef()[j][k] = vibE_[celli];
 			    ////////////////new//////////////////			    
                         }
                     }
@@ -2357,7 +2363,7 @@ void dsmcVolFields::calculateField()
                 meanCollisionSeparation_.write(); //mcs
                 cr_.write();
                 SOF_.write();// mcs/mfp
-		vibE_.write();//////////////new//////////
+		//vibE_.write();//////////////new//////////
             }
             
             if (measureClassifications_)
