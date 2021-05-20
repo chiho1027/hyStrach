@@ -98,22 +98,6 @@ protected:
 	 const label nExIndex 
 	);
 
-        void postReactionVibrationalRedistributionNew
-	(
-	 const label postExciteMode,
-	 const scalar preCollisionEnergy,
-	 const scalar reverseOmega,
-	 const scalarList& thetaVProduct,
-	 labelList* vibLevel,
-	 scalar& Ec
-	);
-
-        label selectExciteMode
-	(
-	 const DynamicList<scalar>& excitePList
-	);
-
-
         void postReactionVibrationalRedistribution
 	(
 	    const label excite,
@@ -167,10 +151,9 @@ protected:
 	(
 	 dsmcParcel& p,
 	 dsmcParcel& q,
-	 const scalar translationalEnergy,
+	 DynamicList<scalar> excitePList,
 	 const label nExIndex,
-	 const DynamicList<scalar>& excitePList,
-	 const scalar forewardActivationEnergy
+	 const scalar translationalEnergy
 	);
 
 
@@ -205,7 +188,8 @@ public:
         (
             dsmcParcel& p,
             dsmcParcel& q,
-	    const label candidateId
+	    dsmcParcel& thirdBody
+	    //const label candidateId
 	    // const DynamicList<label>& candidateList,
             //const List<DynamicList<label> >& candidateSubList,
             //const label& candidateP,

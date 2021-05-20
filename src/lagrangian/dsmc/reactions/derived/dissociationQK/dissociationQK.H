@@ -132,7 +132,8 @@ public:
         (
             dsmcParcel& p,
             dsmcParcel& q,
-	    const label candidateId
+	    dsmcParcel& thirdBody
+	    //const label candidateId
             //const DynamicList<label>& candidateList,
             //const List<DynamicList<label> >& candidateSubList,
             //const label& candidateP,

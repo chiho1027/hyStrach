@@ -106,7 +106,8 @@ void dissociationExchangeRecombinationQK::reaction
 (
     dsmcParcel& p,
     dsmcParcel& q,
-    const label candidateId
+    dsmcParcel& thirdBody
+    //const label candidateId
     //const DynamicList<label>& candidateList,
     //const List<DynamicList<label> >& candidateSubList,
     //const label& candidateP,
@@ -120,24 +121,19 @@ void dissociationExchangeRecombinationQK::reaction
     const label typeIdQ = q.typeId();
     
     if (typeIdP == reactantIds_[0]) 
-    {
-      //find thirdBody Index 
-      const label  nR = findIndex( thirdBodyId_, candidateId );
-      
+    {  	
         const scalar mP = cloud_.constProps(typeIdP).mass();
         const scalar mQ = cloud_.constProps(typeIdQ).mass();
-        const scalar mR = mP*mQ/(mP + mQ);
-        
-        const scalar omegaPQ =
-            0.5
-            *(
-                  cloud_.constProps(typeIdP).omega()
-                + cloud_.constProps(typeIdQ).omega()
-            );
-        
+        const scalar mR = mP*mQ/(mP + mQ);        
         const scalar cRsqr = magSqr(p.U() - q.U());
         const scalar translationalEnergy = 0.5*mR*cRsqr;
-        
+	const scalar omegaPQ =
+	  0.5
+	  *(
+	    cloud_.constProps(typeIdP).omega()
+	    + cloud_.constProps(typeIdQ).omega()
+           );
+	
 	// dissociation initialized data
         label vibModeDissoP = -1;
         label vibModeDissoQ = -1;
@@ -145,15 +141,172 @@ void dissociationExchangeRecombinationQK::reaction
 	// exchange initialized data
 	const label numberOfExchange = exchangeQK::numberOfExchange_;
 
+	// record each reaction probability of different vibrational mode
+	List<DynamicList<scalar> > pReactionPDiffVibMode(numberOfExchange);
+	List<DynamicList<scalar> > qReactionPDiffVibMode(numberOfExchange);
+
+	// dissociate initalized data
+	const label& pType = cloud_.constProps(typeIdP).type();
+	const label& qType = cloud_.constProps(typeIdQ).type();
+
+	//just one reaction will consider
+	label bothDiatomic = 0;
+	if( pType >= 20 && qType >= 20 )
+	{
+	  bothDiatomic = 1;
+	}
+	
 	//- Possible reactions:
         // 1. Dissociation of P
         // 2. Dissociation of Q
 	// 3. Recombination
         // 4~?. Exchanges (many) 
 
-        scalar totalReactionProbability = 0.0;
+        //scalar totalReactionProbability = 0.0;
         scalarList reactionProbabilities(3+numberOfExchange, 0.0);
-        
+
+	//numberofexchange + 2dissociation + recomb OR numberofexchange + dissociation + recomb
+	const label rn = cloud_.randomLabel(0, numberOfExchange + bothDiatomic + 1 );
+	if (rn == 0)
+	{
+	  dissociationQK::testDissociation
+	  (
+	   p,
+	   translationalEnergy,
+	   vibModeDissoP,
+	   reactionProbabilities[0]
+	  );
+
+	  if(reactionProbabilities[0] > cloud_.rndGen().sample01<scalar>())
+	  {
+	    dissociationQK::dissociateParticleByPartner
+	    (
+	     p, q, 0, vibModeDissoP, translationalEnergy
+	    );
+	  }	  
+	}
+	else if (rn == bothDiatomic)
+	{
+	  dissociationQK::testDissociation
+	  (
+	   q,
+	   translationalEnergy,
+	   vibModeDissoQ,
+	   reactionProbabilities[1]
+	  );
+
+	  if(reactionProbabilities[1] > cloud_.rndGen().sample01<scalar>())
+	  {
+	    dissociationQK::dissociateParticleByPartner
+	    (
+	     q, p, 1, vibModeDissoQ, translationalEnergy
+	    );
+	  }	  	    
+	}
+	else if (rn == 1 + bothDiatomic)
+	{
+	  //find thirdBody Index 
+	  const label  nR = findIndex( thirdBodyId_, thirdBody.typeId() );
+	  
+	  recombinationQK::testRecombination
+	  (
+	   p,
+	   q,
+	   translationalEnergy,
+	   omegaPQ,
+	   nR,
+	   reactionProbabilities[2]
+	  );
+
+	  if (reactionProbabilities[2] > cloud_.rndGen().sample01<scalar>())
+	  {
+	    recombinationQK::recombination(p, q, thirdBody, nR, translationalEnergy);
+	  }
+	}
+	else
+	{
+	  if (exchangeQK::posAtomReactant_ == 1) //exchange exsis atom ABC + D in chemicalDict
+	  {
+	    exchangeQK::testExchange
+	    (
+	     p,
+	     translationalEnergy,
+	     omegaPQ,
+	     rn-2-bothDiatomic,
+	     reactionProbabilities[rn],
+	     pReactionPDiffVibMode[rn-2-bothDiatomic]
+	    );
+
+	    if(reactionProbabilities[rn] > cloud_.rndGen().sample01<scalar>())
+	    {
+	      //*****generate probability List for 'all' vibrational mode****************
+	      DynamicList<scalar> excitePList = pReactionPDiffVibMode[rn-2-bothDiatomic];
+
+	      exchange(p, q, excitePList, rn-2-bothDiatomic, translationalEnergy);
+	    }	    
+	  }
+	  else if (exchangeQK::posAtomReactant_ == 0) //exchange exsis atom D + ABC in chemicalDict
+	  {	      
+	    exchangeQK::testExchange
+	    (
+	     q,
+	     translationalEnergy,
+	     omegaPQ,
+	     rn-2-bothDiatomic,
+	     reactionProbabilities[rn],
+	     qReactionPDiffVibMode[rn-2-bothDiatomic]
+	    );
+
+	    if(reactionProbabilities[rn] > cloud_.rndGen().sample01<scalar>())
+	    {
+	      //*****generate probability List for 'all' vibrational mode*************
+	      DynamicList<scalar> excitePList = qReactionPDiffVibMode[rn-2-bothDiatomic];
+	      
+	      exchange(q, p, excitePList, rn-2-bothDiatomic, translationalEnergy);
+	    }	    
+	  }
+	  else // both are moleculer
+	  {
+	    scalar probabilitiesP = 0.0;
+	    exchangeQK::testExchange
+	    (
+	     p,
+	     translationalEnergy,
+	     omegaPQ,
+	     rn-2-bothDiatomic,
+	     probabilitiesP,
+	     pReactionPDiffVibMode[rn-2-bothDiatomic]
+	    );
+
+	    scalar probabilitiesQ = 0.0;
+	    exchangeQK::testExchange
+	    (
+	     q,
+	     translationalEnergy,
+	     omegaPQ,
+	     rn-2-bothDiatomic,
+	     probabilitiesQ,
+	     qReactionPDiffVibMode[rn-2-bothDiatomic]
+	    );
+	      
+	    reactionProbabilities[rn] = probabilitiesP + probabilitiesQ;
+
+	    if(reactionProbabilities[rn] > cloud_.rndGen().sample01<scalar>())
+	    {
+	      //*****generate probability List for 'all' vibrational mode****************
+	      DynamicList<scalar> excitePList = pReactionPDiffVibMode[rn-2-bothDiatomic];
+	      forAll(qReactionPDiffVibMode[rn-2-bothDiatomic], m)
+	      {
+		excitePList.append(qReactionPDiffVibMode[rn-2-bothDiatomic][m]);
+	      }
+	      
+	      exchange(p, q, excitePList, rn-2-bothDiatomic, translationalEnergy);
+	    }	      	     
+	  }
+	}	
+
+	
+	/*
         dissociationQK::testDissociation
         (
             p,
@@ -320,12 +473,13 @@ void dissociationExchangeRecombinationQK::reaction
                 }
             }
         }
+	*/
     }
     else
     {
         //  If P is the second reactant, then switch arguments in this
         //  function and P will be first
-      dissociationExchangeRecombinationQK::reaction(q, p, candidateId);
+      dissociationExchangeRecombinationQK::reaction(q, p, thirdBody);
     }
 }
 

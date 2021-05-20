@@ -230,7 +230,7 @@ void dsmcMeshFill::setInitialConfiguration()
     (
         mostAbundantType
     );
-
+    
     cloud_.sigmaTcRMax().primitiveFieldRef() = cP.sigmaT()*cloud_.maxwellianMostProbableSpeed
     (
         translationalTemperature,

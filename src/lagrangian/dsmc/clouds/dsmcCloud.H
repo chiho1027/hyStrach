@@ -482,7 +482,6 @@ public:
         void postReactionVibrationalRedistribution
 	(
 	 const label mode,
-	 const scalar reverseOmega,
 	 const scalar remainDOF,
 	 const scalarList& theta,
 	 labelList* vibLevel,

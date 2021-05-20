@@ -40,8 +40,8 @@ reactions/basic/dsmcReaction/dsmcReaction.C
 reactions/derived/dissociationQK/dissociationQK.C
 reactions/derived/exchangeQK/exchangeQK.C
 reactions/derived/recombinationQK/recombinationQK.C
-/*reactions/derived/mixed/dissociationExchangeQK/dissociationExchangeQK.C*/
-/*reactions/derived/mixed/dissociationExchangeRecombinationQK/dissociationExchangeRecombinationQK.C*/
+reactions/derived/mixed/dissociationExchangeQK/dissociationExchangeQK.C
+reactions/derived/mixed/dissociationExchangeRecombinationQK/dissociationExchangeRecombinationQK.C
 
 /*reactions/derived/ionisationQK/ionisationQK.C*/
 /*reactions/derived/associativeIonisationQK/associativeIonisationQK.C*/

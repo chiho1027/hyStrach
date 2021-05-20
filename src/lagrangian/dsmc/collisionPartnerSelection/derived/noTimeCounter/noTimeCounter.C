@@ -287,14 +287,14 @@ void noTimeCounter::collide()
 			      } while (candidateP == candidateThird || candidateQ == candidateThird);
 			    }
 			    
-			    dsmcParcel& thirdBody = *cellParcels[candidateThird];
+			    dsmcParcel& parcelThirdBody = *cellParcels[candidateThird];
 			    
 			    // so far for recombination only
 			    cloud_.reactions().reactions()[rMId]->reaction
 			    (
 			     parcelP,
 			     parcelQ,
-			     thirdBody.typeId()
+			     parcelThirdBody
 			     //candidateList,
 			     //candidateSubList,
 			     //candidateP,
@@ -302,8 +302,20 @@ void noTimeCounter::collide()
 			    );
 			    
 			    //recombinationa occure and delete particle in list
-			    if(!cloud_.reactions().reactions()[rMId]->relax())
-			    {			      
+			    //if(!cloud_.reactions().reactions()[rMId]->relax())
+			    if(parcelP.typeId() == -1 || parcelQ.typeId() == -1)
+			    {
+			      /*
+			      Info << "P Type           = " << parcelP.typeId() << endl;
+			      Info << "Q Type           = " << parcelQ.typeId() << endl;
+			      Info << "candidateP       = " << candidateP << endl;
+			      Info << "candidateQ       = " << candidateQ << endl;
+			      Info << "candidateList    = " << candidateList.size() << endl;
+			      Info << "candidateSubList = " << candidateSubList << endl;
+			      Info << "whichSubCell     = " << whichSubCell << endl;
+			      Info << "/////////////////////////" << endl;
+			      */
+
 			      label deleteCandidate = 0;
 			      if(parcelP.typeId() == -1)
 			      {
@@ -340,6 +352,13 @@ void noTimeCounter::collide()
 			      }
 			      subCellDelete.transfer(newSubCellPs);
 			      subCellDelete.shrink();
+			      /*
+			      Info << "candidateP       = " << candidateP << endl;
+			      Info << "candidateQ       = " << candidateQ << endl;
+			      Info << "candidateList    = " << candidateList.size() << endl;
+			      Info << "candidateSubList = " << candidateSubList << endl;
+			      Info << "whichSubCell     = " << whichSubCell << endl;
+			      */
 			    }
 			    
 			  }

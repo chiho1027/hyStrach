@@ -198,39 +198,6 @@ void exchangeQK::setProperties()
     }// end forAll
 }
 
-label exchangeQK::selectExciteMode
-(
- const DynamicList<scalar>& excitePList
-)
-{
-  label exciteMode = -1;
-  
-  scalar totalP = 0.0;
-  forAll(excitePList, m)
-  {
-    totalP += excitePList[m];
-  }
-  
-  const scalarList normalisedP = excitePList/totalP;
-  const labelList sortedNormalPIndices = decreasing_sort_indices(normalisedP); 
-  const scalar rndmP = cloud_.rndGen().sample01<scalar>();	
-  scalar cumulativeP = 0.0;
-  forAll(sortedNormalPIndices, idx)
-  {
-    const label u = sortedNormalPIndices[idx];
-    cumulativeP += normalisedP[u];
-    
-    if (cumulativeP > rndmP)
-    {
-      exciteMode = u;
-      
-      break;
-    }
-  }// end for
-  
-  return exciteMode;
-}
-
 scalar exchangeQK::equilibriumDistribution
 (
  const dsmcParcel& p,
@@ -301,335 +268,6 @@ scalar exchangeQK::equilibriumDistribution
     //return modifiyTranslationalEnergy
     return collisionEnergy - j*kBByThetaVP;
 }
-  
-void exchangeQK::postReactionVibrationalRedistributionNew
-(
- const label postExciteMode,
- const scalar preCollisionEnergy,
- const scalar reverseOmega,
- const scalarList& thetaVProduct,
- labelList* vibLevel,
- scalar& Ec
-)
-{
-  const scalar kBByThetaVP = physicoChemical::k.value()*thetaVProduct[postExciteMode];
-  const label iMax = preCollisionEnergy/kBByThetaVP;
-  if(iMax == 0)
-  {
-    (*vibLevel)[postExciteMode] = 0;
-    return;
-  }
- 
-  scalar func  = 0.0;
-  label j      =  -1;	
-  
-  //select postProuct pre-reaction vibrational level
-    do // acceptance - rejection
-    {
-      j = cloud_.randomLabel(0, iMax);
-
-      func = 
-	pow(1.0 - j*kBByThetaVP/preCollisionEnergy ,1.5 - reverseOmega);
-
-      //func *= pow((preCollisionEnergy-activationEnergy)/(physicoChemical::k.value()*3000.0),0.125-reverseOmega)*0.1;
-      
-      //scalar difference = activationEnergy-forewardActivationEnergy;   
-
-      //Info << "for = " << forewardActivationEnergy/(physicoChemical::k.value()*3000.0) << endl;  
-      //Info << "re = " << activationEnergy/(physicoChemical::k.value()*3000.0) << endl;
-      //Info << "diff = " << difference << endl;
-
-      /*
-      //if(preCollisionEnergy < 1.7582*activationEnergy)
-      //if(preCollisionEnergy < 1.56933*activationEnergy)// original max at (Ea'/ktheta)
-      //if(preCollisionEnergy < 1.35*activationEnergy)// temp original max at (Ea'/ktheta)
-      if(preCollisionEnergy < 9999*activationEnergy)// temp original max at (Ea'/ktheta)1.57218
-      //if(preCollisionEnergy < 1.624737*activationEnergy) // max at level 6
-      //if(preCollisionEnergy < 1.4485*activationEnergy)   
-      //if(preCollisionEnergy < 1.35831*activationEnergy) // for 1.8
-      //if(preCollisionEnergy < 1.449228*activationEnergy) // 1.5
-      //if(preCollisionEnergy < 1.432812*activationEnergy) // 1.55
-      //if(preCollisionEnergy < 1.5321*activationEnergy) // 1.3
-      //if(preCollisionEnergy < 1.199392*activationEnergy)
-      {
-              if(j*kBByThetaVP < forewardActivationEnergy)
-	      { 		 
-		func =
-		  pow(1.0 - j*kBByThetaVP/(preCollisionEnergy+difference),1.5 - reverseOmega)
-		  ;
-	      }
-	      else if(j*kBByThetaVP < activationEnergy)
-	      {		
-		scalar factor =
-		  pow(
-		      (1.0-activationEnergy/(preCollisionEnergy-j*kBByThetaVP+activationEnergy))
-		      /(1.0-activationEnergy/(preCollisionEnergy+difference))//+difference
-		      ,1.5 - reverseOmega
-		      );
-
-		scalar summation1 = 0.0;
-		label iaP = (preCollisionEnergy+difference)/kBByThetaVP;//+difference	
-		for(label i=0; i<=iaP; i++)
-		  {
-		    summation1 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy+difference),//+difference	
-		       1.5 - reverseOmega
-		       );
-		  }
-
-		scalar summation2 = 0.0;
-		label iaQ = (preCollisionEnergy-j*kBByThetaVP+activationEnergy)/kBByThetaVP;		
-		for(label i=0; i<=iaQ; i++)
-		  {
-		    summation2 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy-j*kBByThetaVP+activationEnergy),
-		       1.5 - reverseOmega
-		       );
-		  }
-
-		factor *= summation1/summation2;
-		
-		func =
-		  pow((preCollisionEnergy+activationEnergy-2.0*j*kBByThetaVP)/(preCollisionEnergy+difference),1.5 - reverseOmega)
-		  *exp((j*kBByThetaVP-forewardActivationEnergy)/(physicoChemical::k.value()*TMacro))
-		  *factor		  
-		  // *pow(difference/(physicoChemical::k.value()*TMacro),1.5 - reverseOmega) //1.1
-		  ;		
-	      }
-      	      else
-      	      {		
-		scalar factor =
-		  pow(
-		      (1.0-activationEnergy/(preCollisionEnergy))
-		      /(1.0-activationEnergy/(preCollisionEnergy+difference))	
-		      ,1.5 - reverseOmega
-		      );		        
-		
-		scalar summation1 = 0.0;
-		label iaP = (preCollisionEnergy+difference)/kBByThetaVP;
-		for(label i=0; i<=iaP; i++)
-		  {
-		    summation1 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy+difference),	
-		       1.5 - reverseOmega
-		       );
-		  }
-
-		scalar summation2 = 0.0;
-		label iaQ = (preCollisionEnergy)/kBByThetaVP;
-		for(label i=0; i<=iaQ; i++)
-		  {
-		    summation2 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy),
-		       1.5 - reverseOmega
-		       );
-		  }
-
-		factor *= summation1/summation2;
-				
-		  //(1.0+
-		   // (difference)/
-		   // (preCollisionEnergy+0.5*(2.5 - reverseOmega)*kBByThetaVP)
-		   //)
-		
-		func =
-		  pow((preCollisionEnergy - j*kBByThetaVP)/(preCollisionEnergy+difference),1.5 - reverseOmega)// original
-		  //pow((preCollisionEnergy - activationEnergy)/(preCollisionEnergy+difference),1.5 - reverseOmega)
-		  *exp((difference)/(physicoChemical::k.value()*TMacro))//original
-		  *factor
-		  
-		  // *pow(forewardActivationEnergy/(physicoChemical::k.value()*TMacro),1.5 - reverseOmega)//2.2
-		  
-		  //pow(1.0 - j*kBByThetaVP/(preCollisionEnergy+activationEnergy*3.4),1.5 - reverseOmega)       
-		  //1.972*pow(1.0 - j*kBByThetaVP/(preCollisionEnergy+difference),1.5 - reverseOmega)
-		  
-		  //pow(1.0 - j*kBByThetaVP/(preCollisionEnergy+10.0*activationEnergy),1.5 - reverseOmega)
-		  //1.972*pow(1.0 - j*kBByThetaVP/(preCollisionEnergy+difference),1.5 - reverseOmega)
-		  // *3.7
-		  // *(pow((preCollisionEnergy-activationEnergy)/(preCollisionEnergy-forewardActivationEnergy)
-		  //	,1.5 - reverseOmega
-		  //	));
-		  //*(pow((preCollisionEnergy-activationEnergy)/(physicoChemical::k.value()*TMacro)
-		  //	,1.5 - reverseOmega
-		  //	))
-		  //;
-		  ;
-	      }
-      }
-      else
-      {
-	      if(j*kBByThetaVP < forewardActivationEnergy)
-	      {
-		scalar factor =
-		  pow(
-		      (1.0-activationEnergy/(preCollisionEnergy))//preCollisionEnergy
-		      /(1.0-activationEnergy/(preCollisionEnergy+difference))
-		      ,1.5 - reverseOmega
-		      );
-
-		scalar summation1 = 0.0;
-		label iaP = (preCollisionEnergy+difference)/kBByThetaVP;		
-		for(label i=0; i<=iaP; i++)
-		  {
-		    summation1 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy+difference),
-		       1.5 - reverseOmega
-		       );
-		  }
-		scalar summation2 = 0.0;
-		label iaQ = (preCollisionEnergy)/kBByThetaVP;//preCollisionEnergy
-		for(label i=0; i<=iaQ; i++)
-		  {
-		    summation2 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy),//preCollisionEnergy
-		       1.5 - reverseOmega
-		       );
-		  }
-		factor *= summation1/summation2;
-		
-		//  (1.0+
-		 //   (difference)/
-		  //  (preCollisionEnergy+0.5*(2.5 - reverseOmega)*kBByThetaVP)
-		  // )
-		  
-		
-		func =
-		  pow((preCollisionEnergy-j*kBByThetaVP+difference)/(preCollisionEnergy-activationEnergy),1.5 - reverseOmega)//orig
-		  *exp((-difference)/(physicoChemical::k.value()*TMacro))//orig		  
-		  // /factor		  
-		  ;
-	      }	      
-	      else if(j*kBByThetaVP < activationEnergy)
-	      {
-		scalar factor =
-		  pow(
-		      (1.0-activationEnergy/(preCollisionEnergy))//preCollisionEnergy
-		      /(1.0-activationEnergy/(preCollisionEnergy-j*kBByThetaVP+activationEnergy))
-		      ,1.5 - reverseOmega
-		      );
-
-		scalar summation1 = 0.0;
-		label iaP = (preCollisionEnergy-j*kBByThetaVP+activationEnergy)/kBByThetaVP;		
-		for(label i=0; i<=iaP; i++)
-		  {
-		    summation1 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy-j*kBByThetaVP+activationEnergy),
-		       1.5 - reverseOmega
-		       );
-		  }
-
-		scalar summation2 = 0.0;
-		label iaQ = (preCollisionEnergy)/kBByThetaVP;//preCollisionEnergy	
-		for(label i=0; i<=iaQ; i++)
-		  {
-		    summation2 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy),//preCollisionEnergy	
-		       1.5 - reverseOmega
-		       );
-		  }
-
-		factor *= summation1/summation2;
-		
-		func =
-		  pow((preCollisionEnergy+activationEnergy-2.0*j*kBByThetaVP)/(preCollisionEnergy-activationEnergy),1.5 - reverseOmega)//orign
-		  *exp((j*kBByThetaVP-activationEnergy)/(physicoChemical::k.value()*TMacro))//orign
-		  // /factor
-		  // *pow(1.0-forewardActivationEnergy/preCollisionEnergy ,1.5 - reverseOmega)
-		  // *pow(1.0-activationEnergy/preCollisionEnergy ,1.5 - reverseOmega)
-		  // /2.0
-		  ;
-	      }
-	      else
-	      {
-		scalar factor =
-		  pow(
-		      (1.0-activationEnergy/(preCollisionEnergy+difference))
-		      /(1.0-activationEnergy/(preCollisionEnergy))
-		      ,1.5 - reverseOmega
-		      );
-
-		scalar summation1 = 0.0;
-		label iaP = (preCollisionEnergy)/kBByThetaVP;		
-		for(label i=0; i<=iaP; i++)
-		  {
-		    summation1 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy),
-		       1.5 - reverseOmega
-		       );
-		  }
-
-		scalar summation2 = 0.0;
-		label iaQ = (preCollisionEnergy+difference)/kBByThetaVP;
-		for(label i=0; i<=iaQ; i++)
-		  {
-		    summation2 += 
-		      pow
-		      (
-		       1.0 - (i*kBByThetaVP)/(preCollisionEnergy+difference),	
-		       1.5 - reverseOmega
-		       );
-		  }
-
-		factor *= summation1/summation2;
-
-		
-		func =
-		  pow((preCollisionEnergy-j*kBByThetaVP)/(preCollisionEnergy-activationEnergy) ,1.5 - reverseOmega) //original
-		  // 1.0/1.3
-		  // *pow((preCollisionEnergy+difference)/(preCollisionEnergy+activationEnergy-10.0*kBByThetaVP) ,1.5 - reverseOmega)
-		  // *exp((-5.0*kBByThetaVP+forewardActivationEnergy)/(physicoChemical::k.value()*TMacro))/1.1
-		  // *factor
-		  ;
-		  // *0.7;// *(0.07*(j-activationEnergy/kBByThetaVP)+1.0);
-	      }	      
-      }      
-      */
-
-	//func = pow(1.0 - j*kBByThetaVP/(preCollisionEnergy+activationEnergy) ,1.5 - reverseOmega);
-
-      /*
-      else
-      {
-	//func = pow((preCollisionEnergy - j*kBByThetaVP)/(preCollisionEnergy+activationEnergy),1.5 - reverseOmega)
-	//  *exp((activationEnergy-forewardActivationEnergy)/(physicoChemical::k.value()*TMacro));
-	func = pow(1.0 - j*kBByThetaVP/(preCollisionEnergy+activationEnergy) ,1.5 - reverseOmega);
-	//func = pow(1.0 - j*kBByThetaVP/(preCollisionEnergy) ,1.5 - reverseOmega);
-      }
-      */
-  
-      // if(j*kBByThetaVP < activationEnergy)
-      //{
-	//func *= probability/exp((-activationEnergy)/(physicoChemical::k.value()*TMacro));
-      //}
-      //else
-      //{
-	//func *= probability/exp((-activationEnergy)/(physicoChemical::k.value()*TMacro));
-      //}
-            
-    }while(func < cloud_.rndGen().sample01<scalar>() );  
-    
-  (*vibLevel)[postExciteMode] = j;  
-  Ec -= j*kBByThetaVP;
-}
-
 
 void exchangeQK::postReactionVibrationalRedistribution
 (
@@ -928,8 +566,8 @@ void exchangeQK::testExchange
 	  )
 	  /summation;
 
-	reactionProbability += singleVibModeP;
-	
+	reactionProbability += singleVibModeP;	    
+      
       }// end if
 
       reactPDiffVibMode.append(singleVibModeP);
@@ -944,10 +582,9 @@ void exchangeQK::exchange
 (
     dsmcParcel& p,
     dsmcParcel& q,
-    const scalar translationalEnergy,
+    DynamicList<scalar> excitePList,
     const label nExIndex,
-    const DynamicList<scalar>& excitePList,
-    const scalar forewardActivationEnergy
+    const scalar translationalEnergy
 )
 {
     const label typeIdP = p.typeId();
@@ -955,13 +592,14 @@ void exchangeQK::exchange
     
     nTotExchangeReactions_[nExIndex]++;
     nExchangeReactionsPerTimeStep_[nExIndex]++;
-
-    //return;
     
     if (allowSplitting_)
     {
       //if reaction happen relax is true
-      //relax_ = false;
+      relax_ = false;
+
+      //temp
+      //relax_ = true;
 
         const scalar& heat =
 	  heatOfReactionExchangeJoules_[nExIndex];
@@ -981,15 +619,12 @@ void exchangeQK::exchange
 	    const scalar ERotQ = q.ERot();
 	    const scalar EVibQ = cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel());
 	      
-	    collisionEnergy = translationalEnergy + ERotP + ERotQ + EVibP + EVibQ + heat;//OfReactionExchangeJoules_[nExIndex];
+	    collisionEnergy = translationalEnergy + ERotP + ERotQ + EVibP + EVibQ + heat;
 	  }
 	  else
 	  {
 	    // A = molecule, B = atom
-	    collisionEnergy = translationalEnergy + ERotP + EVibP + heat;//OfReactionExchangeJoules_[nExIndex];
-
-	    //temp/////////////////////////////////////////////////
-	    //collisionEnergy = translationalEnergy + EVibP + heat;
+	    collisionEnergy = translationalEnergy + ERotP + EVibP + heat;
 	  }
 	}
 	else
@@ -998,30 +633,68 @@ void exchangeQK::exchange
 	  const scalar ERotQ = q.ERot();
 	  const scalar EVibQ = cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel());
 	  
-	  collisionEnergy = translationalEnergy + ERotQ + EVibQ + heat;//OfReactionExchangeJoules_[nExIndex];
+	  collisionEnergy = translationalEnergy + ERotQ + EVibQ + heat;
 	}
 
+	//- Collision temperature: Eq.(10) of Bird's QK paper.	
+        scalar TMacro = cloud_.fields().overallT(p.cell());
+	
+	if(TMacro == 0.0)
+	{
+	  //cloud_.evolve_fields();
+	  cloud_.fields().calculateFields();
+	  TMacro = cloud_.fields().overallT(p.cell());
+	}
+	
+	/*
+	scalar TColl = (translationalEnergy/physicoChemical::k.value())/(2.5 - reverseOmega);
+	
+	const scalar aDash = 
+	  aCoeff_[nExIndex][1]
+	  *(
+            pow(2.5 - reverseOmega, bCoeff_[nExIndex][1])
+	    *exp(lgamma(2.5 - reverseOmega))
+	    /exp(lgamma(2.5 - reverseOmega + bCoeff_[nExIndex][1]))
+	    );
+	*/
+	
+	scalar forewardActivationEnergy = 
+	   aCoeff_[nExIndex][0]*pow(TMacro/273.0, bCoeff_[nExIndex][0])// changed aDash
+	   *fabs(heat);    		      
+	
+	if (heat < 0.0) 
+	  {
+	    //- forward (endothermic) exchange reaction
+	    forewardActivationEnergy -= heat;
+	  }
+
+	scalar activationEnergy = 
+	   aCoeff_[nExIndex][1]*pow(TMacro/273.0, bCoeff_[nExIndex][1])//changed aDash
+	   *fabs(heat);
+
+	if ( -heat < 0.0) 
+	  {
+	    //- reward (exthothermic) exchange reaction
+	    activationEnergy -= -heat;
+	  }
+
+	const scalar activationEnergyDifference = -forewardActivationEnergy + activationEnergy;
+
 	//************select pre exchange collision energy of QK reaction*************
-	scalar preCollisionEnergy = 0.0;
-	label   preExciteMode     = selectExciteMode(excitePList);
-	//label preExciteMode  = cloud_.randomLabel(0, 2);
+	scalar preCollisionEnergy = translationalEnergy + activationEnergyDifference;
+	label  preExciteMode      = selectExciteMode(excitePList);
 	if(preExciteMode < p.vibLevel().size())
 	{
-	  preCollisionEnergy = translationalEnergy 
-	    +(p.vibLevel()[preExciteMode])
-	    *physicoChemical::k.value()
-	    *cloud_.constProps(typeIdP).thetaV()[preExciteMode];      	  
+	  preCollisionEnergy += cloud_.constProps(typeIdP)
+	    .eVib_m(preExciteMode, p.vibLevel()[preExciteMode]);
 	}
 	else
 	{
-	  preCollisionEnergy = translationalEnergy
-	    + cloud_.constProps(typeIdQ)
+	  preCollisionEnergy +=  cloud_.constProps(typeIdQ)
 	    .eVib_m(preExciteMode-p.vibLevel().size(), q.vibLevel()[preExciteMode-p.vibLevel().size()]);
-	    //+(q.vibLevel()[preExciteMode])
-	    //*physicoChemical::k.value()
-	    //*cloud_.constProps(typeIdQ).thetaV()[preExciteMode];
-	}
+	}	
 	//***************************************************************
+	
         vector UP = p.U();
         vector UQ = q.U();
 	
@@ -1045,206 +718,209 @@ void exchangeQK::exchange
 	const scalarList& thetaVProductMole = cloud_.constProps(typeIdMole).thetaV();
 	const scalarList& thetaVProductSecond = cloud_.constProps(typeIdSecond).thetaV();
 
-        scalar reverseOmega =  0.5*(
+        const scalar reverseOmega =  0.5*(
 				    cloud_.constProps(typeIdMole).omega()
 				    + cloud_.constProps(typeIdSecond).omega()
 				    );
-
-	//reverseOmega = omegaPQ;
 	
-	//- Collision temperature: Eq.(10) of Bird's QK paper.
-	
-        scalar TMacro = cloud_.fields().overallT(p.cell());
-
-	if(TMacro == 0.0)
-	{
-	  //cloud_.evolve_fields();
-	  cloud_.fields().calculateFields();
-	  TMacro = cloud_.fields().overallT(p.cell());
-	}
-	
-	/*
-	scalar TColl = (translationalEnergy/physicoChemical::k.value())/(2.5 - reverseOmega);
-	
-	const scalar aDash = 
-	  aCoeff_[nExIndex][1]
-	  *(
-            pow(2.5 - reverseOmega, bCoeff_[nExIndex][1])
-	    *exp(lgamma(2.5 - reverseOmega))
-	    /exp(lgamma(2.5 - reverseOmega + bCoeff_[nExIndex][1]))
-	    );
-	*/
-
-	scalar activationEnergy = 
-	  (
-	   aCoeff_[nExIndex][1]*pow(TMacro/273.0, bCoeff_[nExIndex][1])//changed aDash
-	   *fabs(heat)
-	   );
-
-	if ( -heat < 0.0) 
-	  {
-	    //- forward (endothermic) exchange reaction
-	    activationEnergy -= -heat;
-	  }
-
 	//- Dof
 	const scalar& moleRDof   = cloud_.constProps(typeIdMole).rotationalDegreesOfFreedom();
 	const scalar& secondRDof = cloud_.constProps(typeIdSecond).rotationalDegreesOfFreedom();
-	//const scalar& moleVDof   = 6.0;//cloud_.vibrationalDegreeOfFreedom(TMacro, collisionEnergy, 2.5-reverseOmega+moleRDof/2.0, thetaVProductMole );
-        //const scalar& secondVDof = 0.0;//cloud_.vibrationalDegreeOfFreedom(TMacro, collisionEnergy, 2.5-reverseOmega+secondRDof/2.0, thetaVProductSecond);
-	//const scalar& moleVDof   = cloud_.vibrationalDegreeOfFreedom(
-	//							     TMacro,
-	//							     preCollisionEnergy-heat,
-	//							     2.5-reverseOmega,
-	//							     thetaVProductMole
-	//							    );	
-	
-	// const scalar reduceEnergy=	
-	  // 0.72*(2.5-reverseOmega)/(2.5-reverseOmega+moleVDof/2.0)
-	  //0.9
-	  // *(preCollisionEnergy-heat-forewardActivationEnergy)+forewardActivationEnergy;
-
-	//Info << "a = " << 1.04*(2.5-reverseOmega)/(2.5-reverseOmega+moleVDof/2.0) << endl;
-	//Info << "f = " << forewardActivationEnergy/(physicoChemical::k.value()*3000.0) << endl;
-	
-	// preCollisionEnergy = heat+reduceEnergy;
+	//const scalar& moleVDof   = cloud_.vibrationalDegreeOfFreedom(TMacro, collisionEnergy, 2.5-reverseOmega+moleRDof/2.0, thetaVProductMole );
+        //const scalar& secondVDof = cloud_.vibrationalDegreeOfFreedom(TMacro, collisionEnergy, 2.5-reverseOmega+secondRDof/2.0, thetaVProductSecond);
 
 	////////////////////////////////////// start ///////////////////////////////////////////////
 	labelList vibLevelMole(thetaVProductMole.size(), 0);
 	labelList vibLevelSecond(thetaVProductSecond.size(), 0);
-	/*
-	postReactionVibrationalRedistributionNew
-	(
-	 thetaVProductMole,
-	 thetaVProductSecond,
-	 activationEnergy,
-	 reverseOmega,
-	 translationalEnergy + heat,
-	 vibLevelMole,
-	 vibLevelSecond,
-	 collisionEnergy
-	)
-	*/
-	/////////////////////////////////////////////////////////////////////////////	
+
 	// determin which vibration mode will participate reaction for product	
 	DynamicList<scalar> productExciteP(0);      
 	forAll(thetaVProductMole, u)
 	{
 	  productExciteP.append( 1./(
-				     0.5+ (preCollisionEnergy-heat-forewardActivationEnergy+activationEnergy)/
+				     0.5+ preCollisionEnergy/
 				     (
 				      (2.5-reverseOmega)*thetaVProductMole[u]*physicoChemical::k.value()
 				     )
 				    )
 			       );				
-	  //exciteP[u] = 1./(1.+ 1000./thetaVProductMole[u]);
-	  //exciteP[u] = thetaVProductMole[u];
 	}
 	forAll(thetaVProductSecond, u)
 	{
 	  productExciteP.append( 1./(
-				     0.5+ (preCollisionEnergy-heat-forewardActivationEnergy+activationEnergy)/
+				     0.5+ preCollisionEnergy/
 				     (
 				      (2.5-reverseOmega)*thetaVProductMole[u]*physicoChemical::k.value()
 				     )
 				    )
 			       );
-	  //exciteP[u] = 1./(1.+ 1000./thetaVProductMole[u]);
-	  //exciteP[thetaVProductMole.size()+u] = thetaVProductSecond[u];
-	}	
-	const label postExciteMode = selectExciteMode(productExciteP);			
+	}
 	
-	label      excite   =  postExciteMode;
-        scalarList theta    =  thetaVProductMole;
-	labelList* vibLevel = &vibLevelMole;
-	
-	if( postExciteMode >= thetaVProductMole.size() )
+	const label postExciteMode = selectExciteMode(productExciteP);
+
+	label      excite   =  0;
+	scalarList theta    =  thetaVProductMole;//assume
+	labelList* vibLevel = &vibLevelMole;//assume
+  
+	if(postExciteMode < thetaVProductMole.size() )
 	{
-	  theta    = thetaVProductSecond;
-	  vibLevel = &vibLevelSecond;
-	  excite  -= thetaVProductMole.size();
+	  excite   =  postExciteMode;
+	}
+	else
+	{
+	  excite   =  postExciteMode-thetaVProductMole.size();
+	  theta    =  thetaVProductSecond;	  
+	  vibLevel =  &vibLevelSecond;
+	}
+	
+	const scalar kBByThetaVP = physicoChemical::k.value()*theta[excite];
+	const label iMax = preCollisionEnergy/kBByThetaVP;
+	if(iMax == 0)
+	{
+	  (*vibLevel)[excite] = 0;
+	}
+	else
+	{
+	  scalar func  = 0.0;
+	  label  j     =   0;
+    
+	  //select postProuct pre-reaction vibrational level
+	  do // acceptance - rejection
+	  {
+	    j = cloud_.randomLabel(0, iMax);
+	    
+	    func = 
+	      pow(1.0 - j*kBByThetaVP/preCollisionEnergy ,1.5 - reverseOmega);
+            
+	  }while(func < cloud_.rndGen().sample01<scalar>() );
+
+	  scalar boltzEv = j*kBByThetaVP;   
+	  if(collisionEnergy < boltzEv)
+	  {
+	    label EvibExcite = int(collisionEnergy/kBByThetaVP);
+	    (*vibLevel)[excite] = EvibExcite;
+	    collisionEnergy    -= EvibExcite*kBByThetaVP;
+	  }
+	  else
+	  {   	    
+	    (*vibLevel)[excite] = j;	  
+	    collisionEnergy    -= j*kBByThetaVP;
+	  }
 	}
 
-	//temp
-	scalar chiho = collisionEnergy - heat - preCollisionEnergy; 
-	
-	postReactionVibrationalRedistributionNew
-	(
-	 excite,
-	 preCollisionEnergy-forewardActivationEnergy+activationEnergy,//pre
-	 reverseOmega,//post
-	 theta,//post
-	 vibLevel,//post
-	 collisionEnergy//post
-	);
-	
-	// vibMole
-	/*
-	  postReactionVibrationalRedistribution
-	  (
-	  excite,
-	  thetaVProductMole,
-	  TMacro,
-	  activationEnergy,
-	  reverseOmega,
-	  vibLevelMole,
-	  collisionEnergy
-	  );
-
-	  // vibSecond	  
-	  postReactionVibrationalRedistribution
-	  (
-	  excite-thetaVProductMole.size(),
-	  thetaVProductSecond,
-	  TMacro,
-	  activationEnergy,
-	  reverseOmega,
-	  vibLevelSecond,
-	  collisionEnergy
-	  );	  
-	*/
-
-
-
-	
-	/*
-	  if(collisionEnergy < 0.0)
+	/////////////////prepare nonExcite vibrational energy list//////////
+	const label nonExciteVibMode = productExciteP.size()-1;
+	DynamicList<scalar> nonExciteVibE(0);
+	if(preExciteMode < p.vibLevel().size())
+	{
+	  forAll(p.vibLevel(),m)
 	  {
-	  label newQ =  candidateList[cloud_.randomLabel(0, candidateList.size()-1)];
-	  
-	  //again choose another q
-	  //calculate new collision energy
-	  //subtracte i*k*theta
-	  nTotExchangeReactions_[nExIndex]--;
-	  nExchangeReactionsPerTimeStep_[nExIndex]--;
-	  recomputeList
-	  
-	  return;
+	    if(m != preExciteMode)
+	    {
+	      nonExciteVibE.append( cloud_.constProps(typeIdP)
+				    .eVib_m(m, p.vibLevel()[m])
+				  );
+	    
+	      if(nonExciteVibE.size() == nonExciteVibMode)	      
+		break;
+	    }
 	  }
-	*/
-	
-
-	/* test demo
-	scalarList c(3, 0.0);
-	scalarList d(3, 0.0);
-	
-        scalarList test(6, 0.0);
-	scalarList* t = &c;
-	
-	forAll(test, u)
-	{	  label s = u;
-	  Info << "u = " << u << endl;
-	  if(u > 2.0)
-	  {
-	    t = &d;
-	    s -= c.size();
-	  }
-
-	  (*t)[s] = u;
-	  Info << "size = " << (*t).size()<< endl;
-	  Info << "t[s] = " << *t << endl;
 	}
+	else
+	{
+	  forAll(q.vibLevel(),m)
+	  {
+	    if(m != preExciteMode-p.vibLevel().size())
+	    {
+	      nonExciteVibE.append( cloud_.constProps(typeIdQ)
+				    .eVib_m(m, q.vibLevel()[m])
+				  );
+	    
+	      if(nonExciteVibE.size() == nonExciteVibMode)	      
+		break;
+	    }
+	  }
+	}
+	
+	// sample other vibrational mode by boltzman distribution
+	// if total collisionEnergy is less than 0 using L-B method to sample vib mode
+	label j    = 0;
+	label mode = 0;
+	/*
+	label nonExciteIndex = 0;
+	scalar tempVibE     = 0.0;
+	scalar ERotPAddVibE = p.ERot();
+	const scalar& dofP = cloud_.constProps(typeIdP).rotationalDegreesOfFreedom();
 	*/
+
+	//scalar remainVibDOF  = (productExciteP.size()-1)*2.0;//-1 means 1 mode has been take part in reaction
+	scalar remainDOF = moleRDof + secondRDof + 2.0*(productExciteP.size()-1 + 2.5 - reverseOmega);//-1 means 1 mode has been take part in reaction
+	
+	forAll(productExciteP, u)
+	{
+	  mode = u;
+	  j    = 0;
+    
+	  if(mode != postExciteMode) 
+	  {
+	    remainDOF -= 2.0;
+	    
+	    if(mode < thetaVProductMole.size() )
+	    {
+	      theta    =  thetaVProductMole;
+	      vibLevel =  &vibLevelMole;
+	    }
+	    else
+	    {
+	      mode    -=  thetaVProductMole.size();
+	      theta    =  thetaVProductSecond;		
+	      vibLevel =  &vibLevelSecond;
+	    }
+
+	    //method one using bolzman
+	    const scalar kToTheta = physicoChemical::k.value()*theta[mode];	    
+	    j = -log(cloud_.rndGen().sample01<scalar>())*TMacro/theta[mode];	    
+
+	    scalar boltzEv = j*kToTheta;   
+	    if(collisionEnergy < boltzEv)
+	    {	      
+	      cloud_.postReactionVibrationalRedistribution
+	      (
+	       mode,
+	       remainDOF,
+	       theta,
+	       vibLevel,
+	       collisionEnergy
+	      );
+	    }
+	    else
+	    {
+	      (*vibLevel)[mode]  = j;
+	      collisionEnergy   -= boltzEv;
+	    }
+	    
+	    //method 2
+	    /*
+	    ERotPAddVibE   += nonExciteVibE[nonExciteIndex];
+	    tempVibE        = ERotPAddVibE;
+	    nonExciteIndex += 1;
+	    cloud_.postReactionVibrationalRedistribution
+	    (
+	     mode,
+	     dofP,
+	     theta,
+	     vibLevel,
+	     ERotPAddVibE
+	    );
+	    tempVibE         -= ERotPAddVibE;
+	    collisionEnergy  -= tempVibE;
+	    */
+	  }	  
+	  else
+	  {
+	    continue;
+	  }
+	}//end for		       	    
 
 	/*
 	if(postExciteMode != 0)
@@ -1267,113 +943,28 @@ void exchangeQK::exchange
 	}
 	*/
 
-	// sample other vibrational mode
 	/*
-	if(productExciteP.size() > 1)
+	if(heat > 0.0)
 	{
-	  scalar remainVibDOF  = (productExciteP.size()-1)*2.0;//-1 means 1 mode has been take part in reaction
-
-	  forAll(productExciteP, u)
-	  {
-	    label mode = u;
-	    if(mode != postExciteMode)
-	    {
-	      if(mode < thetaVProductMole.size() )
-	      {
-		theta    =  thetaVProductMole;
-		vibLevel = &vibLevelMole;
-	      }
-	      else
-	      {
-		theta    =  thetaVProductSecond;
-		mode     =  mode-thetaVProductMole.size();
-		vibLevel = &vibLevelSecond;
-	      }
-	      
-	      cloud_.postReactionVibrationalRedistribution
-	      (
-	       mode,
-	       reverseOmega,
-	       (moleRDof + secondRDof),// + remainVibDOF),
-	       theta,
-	       vibLevel,
-	       chiho
-	      );
-	      	      
-	      remainVibDOF -= 2.0;
-	    }
-	    else
-	    {
-	      continue;
-	    }
-	  }
-	}	
-	*/
-
-	// sample other vibrational mode by boltzman distribution
-	label j = 0;
-	forAll(productExciteP, u)
-	{
-	  label mode = u;
-	  if(mode != postExciteMode) 
-	  {
-	    if(mode < thetaVProductMole.size() )
-	      {
-		theta    =  thetaVProductMole;
-		vibLevel = &vibLevelMole;
-	      }
-	      else
-	      {
-		theta    =  thetaVProductSecond;
-		mode     =  mode-thetaVProductMole.size();
-		vibLevel = &vibLevelSecond;
-	      }
-	    	    
-	    const scalar kToTheta = physicoChemical::k.value()*theta[mode];
-	    
-	    j = -log(cloud_.rndGen().sample01<scalar>())*TMacro/theta[mode];	    
-
-	    (*vibLevel)[mode]   = j;// vibLevelMole[mode]  = j;
-	    collisionEnergy -= j*kToTheta;
-	    
-	    if(collisionEnergy < 0.0)
-	    {
-	      scalar temp = chiho;
-	      cloud_.postReactionVibrationalRedistribution
-	      (
-	       mode,
-	       reverseOmega,
-	       (moleRDof + secondRDof),// + remainVibDOF),
-	       theta,
-	       vibLevel,
-	       chiho
-	      );
-	      collisionEnergy = collisionEnergy + j*kToTheta - temp + chiho;
-	      	       	  
-	      //collisionEnergy   += j*kToTheta;
-	      //(*vibLevel)[mode]  = int(collisionEnergy/kToTheta);
-	      //collisionEnergy   -= (*vibLevel)[mode]*kToTheta;	      
-	    }
-	  }	  
-	  else
-	  {
-	    continue;
-	  }
-	}//end for		
-
-	
-	vibLevelMole[postExciteMode] = -1; 
-	
-	Info << "bird = "
+	  Info << "birdH2Ore = "	     
 	     << vibLevelMole[0] << " "
 	     << vibLevelMole[1] << " "
-	     << vibLevelMole[2] << endl;	
+	     << vibLevelMole[2] << endl;
+	}
+	else
+	{
+	  Info << "birdHO2re = "	     
+	     << vibLevelMole[0] << " "
+	     << vibLevelMole[1] << " "
+	     << vibLevelMole[2] << endl;
+	}
 	
-	  return;	
-
+	return;	
+	*/
 	       	
-	////////////////-first Trial L-B redistribution (rotation)	
-	scalar energyRatioMole   = cloud_.postCollisionRotationalEnergy( moleRDof, 2.5 - reverseOmega + secondRDof/2.0 );
+	////////////////-first Trial L-B redistribution (rotation)
+	remainDOF -= moleRDof;
+	scalar energyRatioMole   = cloud_.postCollisionRotationalEnergy( moleRDof, remainDOF/2.0);
         scalar ERotProductMole   = energyRatioMole*collisionEnergy;
 	collisionEnergy -= ERotProductMole;//- Relative collisionEnergy energy after rotational energy redistribution
 
@@ -1381,7 +972,8 @@ void exchangeQK::exchange
 	scalar ERotProductSecond = 0.0;
 	if( thetaVProductSecond.size() > 0 )
 	{
-	  const scalar energyRatioSecond = cloud_.postCollisionRotationalEnergy( secondRDof, 2.5 - reverseOmega );
+	  remainDOF -= secondRDof;
+	  const scalar energyRatioSecond = cloud_.postCollisionRotationalEnergy( secondRDof, remainDOF/2.0 );
 	  ERotProductSecond = energyRatioSecond*collisionEnergy;
 	  collisionEnergy -= ERotProductSecond;//- Relative collisionEnergy energy after rotational energy redistribution
 	}
@@ -1405,6 +997,10 @@ void exchangeQK::exchange
         UP = Ucm + postCollisionRelU*mQExch/(mPExch + mQExch);
         UQ = Ucm - postCollisionRelU*mPExch/(mPExch + mQExch);
 
+
+	//Info << "Pbefore(exchange) = " << p.typeId() << endl;
+	//Info << "Qbefore(exchange) = " << q.typeId() << endl;
+	
         //- p is originally the molecule becomes the atom
         p.typeId() = typeIdSecond;
         p.U() = UP;
@@ -1429,6 +1025,21 @@ void exchangeQK::exchange
         q.U() = UQ;
         q.ERot() = ERotProductMole;
         q.vibLevel() = vibLevelMole;
+
+	
+	//Info << "Pafter(exchange) = " << p.typeId() << endl;
+	//Info << "Qafter(exchange) = " << q.typeId() << endl;
+	
+	/*
+	scalar postE =
+	   0.5*cloud_.constProps(p.typeId()).mass()*magSqr(p.U())
+	  +0.5*cloud_.constProps(q.typeId()).mass()*magSqr(q.U())
+	  +p.ERot()+q.ERot()
+	  +cloud_.constProps(p.typeId()).eVib_tot(p.vibLevel())
+	  +cloud_.constProps(q.typeId()).eVib_tot(q.vibLevel());
+	Info << "postE = " << postE << endl;
+	*/
+	
     }
 }
 
@@ -1524,7 +1135,8 @@ void exchangeQK::reaction
 (
     dsmcParcel& p,
     dsmcParcel& q,
-    const label candidateId
+    dsmcParcel& thirdBody
+    //const label candidateId
     //const DynamicList<label>& candidateList,
     //const List<DynamicList<label> >& candidateSubList,
     //const label& candidateP,
@@ -1551,7 +1163,18 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
      //  and  (cloud_.constProps(typeIdQ).type() >= 20)  //molecule
      // )
     ) 
-    {	
+    {
+      /*
+      scalar preE =
+	 0.5*cloud_.constProps(p.typeId()).mass()*magSqr(p.U())
+	+0.5*cloud_.constProps(q.typeId()).mass()*magSqr(q.U())
+	+p.ERot()+q.ERot()
+	+cloud_.constProps(p.typeId()).eVib_tot(p.vibLevel())
+	+cloud_.constProps(q.typeId()).eVib_tot(q.vibLevel())
+	+heatOfReactionExchangeJoules_[0];
+      Info << "preE = " << preE << endl;
+      */
+      
         const scalar mP = cloud_.constProps(typeIdP).mass();
         const scalar mQ = cloud_.constProps(typeIdQ).mass();
         const scalar mR = mP*mQ/(mP + mQ);
@@ -1562,81 +1185,100 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
             *(
                   cloud_.constProps(typeIdP).omega()
                 + cloud_.constProps(typeIdQ).omega()
-            );
-	
+            );       
 	
         //- Possible reactions:
         // 1. Exchange reaction
-        scalar totalReactionProbability = 0.0;
+        //scalar totalReactionProbability = 0.0;
         scalarList reactionProbabilities(numberOfExchange_, 0.0);
         //scalarList collisionEnergies(numberOfExchange_, 0.0);
 
 	// record each reaction probability of different vibrational mode
 	List<DynamicList<scalar> > pReactionPDiffVibMode(numberOfExchange_);
 	List<DynamicList<scalar> > qReactionPDiffVibMode(numberOfExchange_);
-	
-	for(label r=0; r<numberOfExchange_; r++)
-	{
-	  if (posAtomReactant_ == 1)//exchange exsis atom ABC + D in chemicalDict
-	  {	   
-	      testExchange
-	      (
-	       p,
-	       translationalEnergy,
-	       omegaPQ,
-	       r,
-	       reactionProbabilities[r],
-	       pReactionPDiffVibMode[r]
-	      );
 
-	    totalReactionProbability += reactionProbabilities[r];
-	  }
-	  else if (posAtomReactant_ == 0 )//exchange exsis atom D + ABC in chemicalDict
-	  {	    
-	      testExchange
-	      (
-	       q,
-	       translationalEnergy,
-	       omegaPQ,
-	       r,
-	       reactionProbabilities[r],
-	       qReactionPDiffVibMode[r]
-	      );
-	    
-	    totalReactionProbability += reactionProbabilities[r];
-	  }
-	  else // both are moleculer
+	const label rn = cloud_.randomLabel(0, numberOfExchange_-1);
+
+	if (posAtomReactant_ == 1)//exchange exsis atom ABC + D in chemicalDict
+	{	   
+	  testExchange
+	  (
+	   p,
+	   translationalEnergy,
+	   omegaPQ,
+	   rn,
+	   reactionProbabilities[rn],
+	   pReactionPDiffVibMode[rn]
+	  );
+	      
+	  if(reactionProbabilities[rn] > cloud_.rndGen().sample01<scalar>())
 	  {
-	    scalar probabilitiesP = 0.0;
-	    testExchange
-	    (
-	     p,
-	     translationalEnergy,
-	     omegaPQ,
-	     r,
-	     probabilitiesP,
-	     pReactionPDiffVibMode[r]
-	    );
-
-	    scalar probabilitiesQ = 0.0;
-	    testExchange
-	    (
-	     q,
-	     translationalEnergy,
-	     omegaPQ,
-	     r,
-	     probabilitiesQ,
-	     qReactionPDiffVibMode[r]	     
-	    );
+	    //*****generate probability List for 'all' vibrational mode****************
+	    DynamicList<scalar> excitePList = pReactionPDiffVibMode[rn];
 	    
-	    reactionProbabilities[r] = probabilitiesP + probabilitiesQ;
-	    totalReactionProbability += reactionProbabilities[r];
-	    
+	    exchange(p, q, excitePList, rn, translationalEnergy);
 	  }	  
-	}// end for
+	}
+	else if (posAtomReactant_ == 0 )//exchange exsis atom D + ABC in chemicalDict
+	{	    
+	  testExchange
+	  (
+	   q,
+	   translationalEnergy,
+	   omegaPQ,
+	   rn,
+	   reactionProbabilities[rn],
+	   qReactionPDiffVibMode[rn]
+	  );
 
-	//Info << "eq = " << p.vibLevel()[0] << " " <<p.vibLevel()[1] << " "<<p.vibLevel()[2]  << endl;
-        
+	  if(reactionProbabilities[rn] > cloud_.rndGen().sample01<scalar>())
+	  {
+	    //*****generate probability List for 'all' vibrational mode****************
+	    DynamicList<scalar> excitePList = qReactionPDiffVibMode[rn];
+
+	    exchange(q, p, excitePList, rn, translationalEnergy);
+	  }	   
+	}
+	else // both are moleculer
+	{
+	  scalar probabilitiesP = 0.0;
+	  testExchange
+	  (
+	   p,
+	   translationalEnergy,
+	   omegaPQ,
+	   rn,
+	   probabilitiesP,
+	   pReactionPDiffVibMode[rn]
+	  );
+
+	  scalar probabilitiesQ = 0.0;
+	  testExchange
+	  (
+	   q,
+	   translationalEnergy,
+	   omegaPQ,
+	   rn,
+	   probabilitiesQ,
+	   qReactionPDiffVibMode[rn]	     
+	  );
+	    
+	  reactionProbabilities[rn] = probabilitiesP + probabilitiesQ;
+
+	  if(reactionProbabilities[rn] > cloud_.rndGen().sample01<scalar>())
+	  {
+	    //*****generate probability List for 'all' vibrational mode****************
+	    DynamicList<scalar> excitePList = pReactionPDiffVibMode[rn];
+	    forAll(qReactionPDiffVibMode[rn], m)
+	    {
+	      excitePList.append(qReactionPDiffVibMode[rn][m]);
+	    }
+	    
+	    exchange(p, q, excitePList, rn, translationalEnergy);
+	  }	
+	}
+	
+	/*
         //- Decide if an exchange reaction is to occur
         if (totalReactionProbability > cloud_.rndGen().sample01<scalar>())
         {
@@ -1669,14 +1311,14 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 		    //- Exchange reaction
 		    if (posAtomReactant_ != 0)//exchange exsis atom ABC + D in chemicalDict or AB + CD 
 		    {		      	      		      		      
-		      //*****generate probability List for 'all' vibrational mode****************
+		      // *****generate probability List for 'all' vibrational mode****************
 		      DynamicList<scalar> excitePList = pReactionPDiffVibMode[i];
 		      forAll(qReactionPDiffVibMode[i], m)
 		      {
 			excitePList.append(qReactionPDiffVibMode[i][m]);
 		      }
-		      
-		      //*********************************************************
+	*/
+		      // *********************************************************
 		      /*
 		      scalar modifyTranslationalEnergy = equilibriumDistribution			
 			(
@@ -1686,12 +1328,14 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 			 i
 			);
 		      */
+		      /*
 		      scalar TMacro = cloud_.fields().overallT(p.cell());
 		      if(TMacro == 0.0)
 		      {
 			cloud_.fields().calculateFields();
 			TMacro = cloud_.fields().overallT(p.cell());
 		      }
+		      */
 		      
 		      //- Collision temperature: Eq.(10) of Bird's QK paper.
 		      /*
@@ -1704,7 +1348,8 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 			/exp(lgamma(2.5 - omegaPQ + bCoeff_[nExIndex][0]))
 			);
 		      */
-		      
+
+		      /*
 		      scalar forewardActivationEnergy = 
 		      (
 		       aCoeff_[i][0]*pow(TMacro/273.0, bCoeff_[i][0])// changed aDash
@@ -1716,16 +1361,17 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 			//- forward (endothermic) exchange reaction
 			forewardActivationEnergy -= heatOfReactionExchangeJoules_[i];
 		      }		  		     
-		      
+		      */
+
+		      /*
 		      if(heatOfReactionExchangeJoules_[i] > 0.0)
 		      {
-			Info << "heatvibLevel = "
-			     << p.vibLevel()[0]
-			     << " "
+			
+			Info << "heatvibLevelHO2for = "
+			     << p.vibLevel()[0] << " "
 			     << p.vibLevel()[1] << " "
-			     << p.vibLevel()[2]
-			     << endl;	        
-
+			     << p.vibLevel()[2] << endl;	        
+		      */	
 			/*
 			//+p.vibLevel()[0]*physicoChemical::k.value()*cloud_.constProps(typeIdP).thetaV()[0]
 		        scalar noOfKT =
@@ -1746,9 +1392,13 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 				 << endl;
 			  }	
 			*/
+			
+			/*
 		      }
 		      else
 		      {
+			*/
+			
 			/*
 			//+p.vibLevel()[0]*physicoChemical::k.value()*cloud_.constProps(typeIdP).thetaV()[0]
 		        scalar noOfKT =
@@ -1770,27 +1420,27 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 			  }			
 			*/
 
-			Info << "coldvibLevel = "        
-			     << p.vibLevel()[0]
-			     << " "
+			/*
+			Info << "coldvibLevelH2Ofor = "        
+			     << p.vibLevel()[0] << " "
 			     << p.vibLevel()[1] << " "
-			     << p.vibLevel()[2]
-			     << endl;
-		      }
-		      
+			     << p.vibLevel()[2] << endl;
 			
-		      exchange(p, q, translationalEnergy, i, excitePList, forewardActivationEnergy);
+		      }
+			*/
+       /*
+		      exchange(p, q, excitePList, i, translationalEnergy);
 		    }
 		    else //exchange exsis atom D + ABC in chemicalDict
 		    {
-		      //*****generate probability List for 'all' vibrational mode*************
+		      // *****generate probability List for 'all' vibrational mode*************
 		      DynamicList<scalar> excitePList = qReactionPDiffVibMode[i];
 		      forAll(pReactionPDiffVibMode[i], m)
 		      {
 			excitePList.append(pReactionPDiffVibMode[i][m]);
 		      }		      
-		      //***************************************************************
-
+		      // ***************************************************************
+       */
 		      /*
 		      scalar modifyTranslationalEnergy =
 			equilibriumDistribution
@@ -1801,12 +1451,14 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 			 i
 			);
 		      */
+		      /*
 		      scalar TMacro = cloud_.fields().overallT(q.cell());
 		      if(TMacro == 0.0)
 		      {
 			cloud_.fields().calculateFields();
 			TMacro = cloud_.fields().overallT(q.cell());
 		      }
+		      */
 		      
 		      //- Collision temperature: Eq.(10) of Bird's QK paper.
 		      /*
@@ -1819,7 +1471,8 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 			/exp(lgamma(2.5 - omegaPQ + bCoeff_[nExIndex][0]))
 			);
 		      */
-		      
+
+		      /*
 		      scalar forewardActivationEnergy = 
 		      (
 		       aCoeff_[i][0]*pow(TMacro/273.0, bCoeff_[i][0])// changed aDash
@@ -1831,6 +1484,7 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 			//- forward (endothermic) exchange reaction
 			forewardActivationEnergy -= heatOfReactionExchangeJoules_[i];
 		      }
+		      */
 		      
 		      /*
 		      if(heatOfReactionExchangeJoules_[i] > 0.0)
@@ -1870,8 +1524,8 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 			//     << endl;
 		      }			      
 		      */
-		      
-		      exchange(q, p, translationalEnergy, i, excitePList, forewardActivationEnergy);
+      /*
+		      exchange(q, p, excitePList, i, translationalEnergy);
 		    }
 		    //- There can't be another reaction: break
 		    break;
@@ -1887,6 +1541,7 @@ void exchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 	    }
 	  }// end forAll
         }//end decied
+      */
     }
     else
     {

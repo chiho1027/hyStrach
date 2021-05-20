@@ -208,6 +208,40 @@ labelList dsmcReaction::decreasing_sort_indices(const scalarList &v)
     return idx;
 }
 
+label dsmcReaction::selectExciteMode
+(
+  DynamicList<scalar> excitePList
+ )
+{
+  label exciteMode = -1;
+  
+  scalar totalP = 0.0;
+  forAll(excitePList, m)
+  {
+    totalP += excitePList[m];
+  }
+  
+  const scalarList normalisedP = excitePList/totalP;
+  const labelList sortedNormalPIndices = decreasing_sort_indices(normalisedP); 
+  const scalar rndmP = cloud_.rndGen().sample01<scalar>();	
+  scalar cumulativeP = 0.0;
+  forAll(sortedNormalPIndices, idx)
+  {
+    const label u = sortedNormalPIndices[idx];
+    cumulativeP += normalisedP[u];
+    
+    if (cumulativeP > rndmP)
+    {
+      exciteMode = u;
+      
+      break;
+    }
+  }// end for
+  
+  return exciteMode;
+}
+  
+
 } // End namespace Foam
 
 // ************************************************************************* //

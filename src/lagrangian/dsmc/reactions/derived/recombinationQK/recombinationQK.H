@@ -121,6 +121,7 @@ protected:
 	(
 	  dsmcParcel& p,
 	  dsmcParcel& q,
+	  dsmcParcel& thirdBody,
 	  const label nR,
 	  const scalar translationalEnergy
 	);
@@ -155,7 +156,8 @@ public:
         (
             dsmcParcel& p,
             dsmcParcel& q,
-	    const label candidateId
+	    dsmcParcel& thirdBody
+	    //const label candidateId
             //const DynamicList<label>& candidateList,
             //const List<DynamicList<label> >& candidateSubList,
             //const label& candidateP,

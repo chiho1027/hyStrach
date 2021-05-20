@@ -154,7 +154,8 @@ public:
         (
             dsmcParcel& p,
             dsmcParcel& q,
-	    const label candidateId
+	    dsmcParcel& thirdBody
+	    //const label candidateId
             //const DynamicList<label>& candidateList,
             //const List<DynamicList<label>>& candidateSubList,
             //const label& candidateP,
@@ -172,6 +173,8 @@ public:
         virtual void outputResults(const label& counterIndex) = 0;
         
         labelList decreasing_sort_indices(const scalarList &v);
+
+        label selectExciteMode(DynamicList<scalar> excitePList);
 
       // Access
       

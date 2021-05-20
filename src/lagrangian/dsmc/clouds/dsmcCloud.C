@@ -1106,7 +1106,7 @@ Foam::scalar Foam::dsmcCloud::equipartitionRotationalEnergy
 
         do
         {
-            energyRatio = 10*rndGen_.sample01<scalar>();
+            energyRatio = 40*rndGen_.sample01<scalar>();
 
             P = pow((energyRatio/a), a)*exp(a - energyRatio);
 
@@ -1233,7 +1233,7 @@ Foam::scalar Foam::dsmcCloud::postCollisionRotationalEnergy
 {
     scalar energyRatio = 0.0;
 
-    if (rotationalDof == 2.0)
+    if(rotationalDof == 2.0)
     {
         energyRatio = 1.0 - pow(rndGen_.sample01<scalar>(), 1.0/ChiB);
     }
@@ -1396,7 +1396,6 @@ Foam::scalar Foam::dsmcCloud::normalizedIncomGamma
 void Foam::dsmcCloud::postReactionVibrationalRedistribution
 (
  const label mode,
- const scalar reverseOmega,
  const scalar remainDOF,
  const scalarList& theta,
  labelList* vibLevel,
@@ -1413,22 +1412,28 @@ void Foam::dsmcCloud::postReactionVibrationalRedistribution
   }
   else
   {
+    scalar temp = 0;
     scalar func  = 0.0;
     scalar ChiBMinusOne = remainDOF/2.0-1.0;
-
     if(ChiBMinusOne == 0.0)
     {
       j = randomLabel(0, iMaxProduct);
+      //temp = rndGen_.sample01<scalar>();
     }
     else
-    {
+    {      
       do
       {
-	j    = randomLabel(0, iMaxProduct);	  
-	func = pow(1.0 - j*kBByThetaVP/Ec ,ChiBMinusOne);	  
-      }while(func < rndGen_.sample01<scalar>());
+	j    = randomLabel(0, iMaxProduct);
+	//temp = rndGen_.sample01<scalar>();
+	func = pow(1.0 - j*kBByThetaVP/Ec ,ChiBMinusOne);
+	//func = pow(1.0 - temp ,ChiBMinusOne);
+      }while(func < rndGen_.sample01<scalar>());            
     }
+    
+    //j = temp*Ec/kBByThetaVP;
   }
+  
   
   (*vibLevel)[mode] = j; 
   //- Relative collision energy after vibrational energy redistribution
@@ -1459,16 +1464,16 @@ Foam::label Foam::dsmcCloud::postCollisionVibrationalEnergyLevel
         scalar func = 0.0;
         scalar EVib = 0.0;
 
-        do // acceptance - rejection
-        {
+	  do // acceptance - rejection
+	  {
             //iDash = rndGen_.position<label>(0, iMax); OLD
             iDash = randomLabel(0, iMax);
             EVib = iDash*physicoChemical::k.value()*thetaV;
-
+	    
             // - equation 5.61, Bird
             func = pow(1.0 - EVib/Ec, 1.5 - omega);
-
-        } while(func < rndGen_.sample01<scalar>());
+	    
+	  } while(func < rndGen_.sample01<scalar>());
     }
     else
     {
