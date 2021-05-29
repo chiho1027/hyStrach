@@ -694,9 +694,7 @@ void exchangeQK::exchange
 	    .eVib_m(preExciteMode-p.vibLevel().size(), q.vibLevel()[preExciteMode-p.vibLevel().size()]);
 	}	
 	//***************************************************************
-
-	scalar equilibriumE = collisionEnergy - preCollisionEnergy + activationEnergyDifference - heat; 
-
+	
         vector UP = p.U();
         vector UQ = q.U();
 	
@@ -777,10 +775,6 @@ void exchangeQK::exchange
 	
 	const scalar kBByThetaVP = physicoChemical::k.value()*theta[excite];
 	const label iMax = preCollisionEnergy/kBByThetaVP;
-
-	//t+v+h
-	collisionEnergy = preCollisionEnergy - activationEnergyDifference + heat;
-	
 	if(iMax == 0)
 	{
 	  (*vibLevel)[excite] = 0;
@@ -813,7 +807,6 @@ void exchangeQK::exchange
 	    collisionEnergy    -= j*kBByThetaVP;
 	  }
 	}
-
 	
 	/////////////////prepare nonExcite vibrational energy list//////////
 	const label nonExciteVibMode = productExciteP.size()-1;
@@ -861,7 +854,7 @@ void exchangeQK::exchange
 	*/
 
 	//scalar remainVibDOF  = (productExciteP.size()-1)*2.0;//-1 means 1 mode has been take part in reaction
-	scalar remainDOF = moleRDof + secondRDof + 2.0*(productExciteP.size()-1);//-1 means 1 mode has been take part in reaction
+	scalar remainDOF = moleRDof + secondRDof + 2.0*(productExciteP.size()-1 + 2.5 - reverseOmega);//-1 means 1 mode has been take part in reaction
 	
 	forAll(productExciteP, u)
 	{
@@ -889,7 +882,7 @@ void exchangeQK::exchange
 	    j = -log(cloud_.rndGen().sample01<scalar>())*TMacro/theta[mode];	    
 
 	    scalar boltzEv = j*kToTheta;   
-	    if(equilibriumE < boltzEv)
+	    if(collisionEnergy < boltzEv)
 	    {	      
 	      cloud_.postReactionVibrationalRedistribution
 	      (
@@ -897,13 +890,13 @@ void exchangeQK::exchange
 	       remainDOF,
 	       theta,
 	       vibLevel,
-	       equilibriumE
+	       collisionEnergy
 	      );
 	    }
 	    else
 	    {
 	      (*vibLevel)[mode]  = j;
-	      equilibriumE   -= boltzEv;
+	      collisionEnergy   -= boltzEv;
 	    }
 	    
 	    //method 2
@@ -968,26 +961,23 @@ void exchangeQK::exchange
 	
 	return;	
 	*/
-	
-	scalar ERotProductMole   = 0.0;
+	       	
+	////////////////-first Trial L-B redistribution (rotation)
+	remainDOF -= moleRDof;
+	const scalar energyRatioMole     = cloud_.postCollisionRotationalEnergy( moleRDof, remainDOF/2.0);
+        const scalar ERotProductMole     = energyRatioMole*collisionEnergy;
+	collisionEnergy -= ERotProductMole;//- Relative collisionEnergy energy after rotational energy redistribution
+
+	////////////////-second Trial L-B redistribution (rotation)
 	scalar ERotProductSecond = 0.0;
-	if(moleRDof>0.0 && secondRDof>0.0)
+	if( thetaVProductSecond.size() > 0 )
 	{
-	  remainDOF -= moleRDof;
-	  const scalar energyRatioMole = cloud_.postCollisionRotationalEnergy( moleRDof, remainDOF/2.0);
-	  ERotProductMole              = energyRatioMole*equilibriumE;
-	  equilibriumE                -= ERotProductMole;
-	  ERotProductSecond            = equilibriumE;
+	  remainDOF -= secondRDof;
+	  const scalar energyRatioSecond = cloud_.postCollisionRotationalEnergy( secondRDof, remainDOF/2.0 );
+	  ERotProductSecond              = energyRatioSecond*collisionEnergy;
+	  collisionEnergy -= ERotProductSecond;//- Relative collisionEnergy energy after rotational energy redistribution
 	}
-	else if(moleRDof>0.0)
-	{
-	  ERotProductMole              = equilibriumE;
-	}
-	else
-	{
-	  ERotProductSecond            = equilibriumE;
-	}
-	
+
 	//////////////////////////////////////  end ///////////////////////////////////////
 	//////////////////- asign energy and velocity ///////////////////////////////////////
         const scalar relVelExchMol = sqrt(2.0*collisionEnergy/mRExch);//collisionEnergy	

@@ -374,7 +374,7 @@ void recombinationQK::recombination
   //return;
   
   if (allowSplitting_)
-  {
+  {    
     //if reaction happen relax is true
     relax_ = false;
     
@@ -807,10 +807,11 @@ void recombinationQK::recombination
 
     //Info << "Pbefore Type = " << p.typeId() << endl;
     //Info << "Qbefore Type = " << q.typeId() << endl;
+
     
-    cloud_.deleteParticle(q);
-    
+    cloud_.deleteParticle(q);    
     cloud_.reBuildCellOccupancy();
+    
 
     //remark this particle to delete in no time contur
     q.typeId() = -1;
@@ -954,7 +955,7 @@ void recombinationQK::reaction
   //  If P is the first reactant A
   //  Q is necessarily B otherwise this class would not have been selected
   if(typeIdP == reactantIds_[0])
-  { 
+  {
     //find thirdBody Index 
     const label  nR = findIndex( thirdBodyId_, thirdBody.typeId());
     

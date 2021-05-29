@@ -87,7 +87,7 @@ void noTimeCounter::collide()
     }
 
     // Temporary storage for subCells
-    List< DynamicList<label> > subCells(8);    
+    List<DynamicList<label>> subCells(8);
 
     label collisionCandidates = 0;
 
@@ -132,7 +132,7 @@ void noTimeCounter::collide()
                 label subCell =
 		  pos(relPos.x()) + 2*pos(relPos.y()) + 4*pos(relPos.z());// pos: positive =1 negetive = 0
 
-		subCells[subCell].append(i);
+                subCells[subCell].append(i);
 
                 whichSubCell[i] = subCell;
             }
@@ -166,25 +166,25 @@ void noTimeCounter::collide()
             List<DynamicList<label> > candidateSubList(subCells);
 	    
 	    // used for delet parcel, the original size of list 
-	    //DynamicList<label> removeParcelId(0);  
+	    //DynamicList<label> removeParcelId(0);
 	    
             for (label c = 0; c < nCandidates; c++)
             {
                 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 // subCell candidate selection procedure
+
 	      const label numberOfC = candidateList.size();
 	      
                 // Select the first collision candidate
-	      const label candidateListPIndex = cloud_.randomLabel(0,numberOfC-1);
-	      const label candidateP = candidateList[candidateListPIndex];
-	      
+	      const label candidateP = candidateList[cloud_.randomLabel(0,numberOfC-1)];		
+
 	      // Declare the second collision candidate
 	      label candidateQ = -1;
 	      
 	      DynamicList<label>& subCellPs = candidateSubList[whichSubCell[candidateP]];
 	      
-	      label candidateListQIndex = -1;
-	      label nSC = subCellPs.size();	      
+	      label nSC = subCellPs.size();
+
 	      if (nSC > 1)
               {
 		// If there are two or more particle in a subCell, choose
@@ -193,25 +193,9 @@ void noTimeCounter::collide()
 		
 		do
 		{
-		  //candidateListQIndex = cloud_.randomLabel(0, nSC-1);
 		  candidateQ = subCellPs[cloud_.randomLabel(0, nSC-1)];
 		  
 		} while (candidateP == candidateQ);
-
-		for(label i=candidateQ; i>-1; i--)
-		{
-		  if(candidateList[i] == candidateQ)
-		  {
-		    candidateListQIndex = i;
-		    break;
-		  }
-		}
-		
-		if(candidateListQIndex == -1)
-		{
-		  Info << "Not find Q particle !" << endl;
-		}
-
 	      }
 	      else //only himself
               {
@@ -220,8 +204,7 @@ void noTimeCounter::collide()
 		// again.
 		do
 		{
-		  candidateListQIndex = cloud_.randomLabel(0, numberOfC-1);
-		  candidateQ = candidateList[candidateListQIndex];
+		  candidateQ = candidateList[cloud_.randomLabel(0, numberOfC-1)];
 		  
 		} while (candidateP == candidateQ);
 	      }
@@ -243,8 +226,8 @@ void noTimeCounter::collide()
 	      
                 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	      
-		dsmcParcel& parcelP = *cellParcels[candidateListPIndex];
-                dsmcParcel& parcelQ = *cellParcels[candidateListQIndex];
+		dsmcParcel& parcelP = *cellParcels[candidateP];
+                dsmcParcel& parcelQ = *cellParcels[candidateQ];
 
                 label chargeP = -2;
                 label chargeQ = -2;
@@ -252,7 +235,8 @@ void noTimeCounter::collide()
                 chargeP = cloud_.constProps(parcelP.typeId()).charge();
                 chargeQ = cloud_.constProps(parcelQ.typeId()).charge();
 
-                //do not allow electron-electron collisions		
+                //do not allow electron-electron collisions
+		
                 if(!(chargeP == -1 && chargeQ == -1))
                 {
                     scalar sigmaTcR = cloud_.binaryCollision().sigmaTcR
@@ -285,60 +269,26 @@ void noTimeCounter::collide()
 			  if(cloud_.reactions().reactions()[rMId]->reactWithLists())
 			  {
 			    ///////////////////////////////////////////////////////////////////////////
-			    label candidateThird          = -1;
-			    label candidateListThirdIndex = -1;
+			    label candidateThird = 0;
 			    if (nSC > 2) // p, q, thirdBody all in subcell 
 			    {				
 			      do
 			      {
-				//candidateListThirdIndex = cloud_.randomLabel(0, nSC-1);
 				candidateThird = subCellPs[cloud_.randomLabel(0, nSC-1)];
 				
-			      } while (candidateP == candidateThird || candidateQ == candidateThird);
-
-			      for(label i=candidateThird; i>-1; i--)
-			      {
-				if(candidateList[i] == candidateThird)
-				{
-				  candidateListThirdIndex = i;
-				  break;
-				}
-			      }			      
-			      
-			      if(candidateListThirdIndex == -1)
-			      {
-				Info << "Not find Third particle !" << endl;
-			      }
-			      
+			      } while (candidateP == candidateThird || candidateQ == candidateThird);			      
 			    }			    
 			    else// thridBody not in subcell
 			    {
 			      do
 			      {
-				candidateListThirdIndex = cloud_.randomLabel(0, numberOfC-1);
-				candidateThird = candidateList[candidateListThirdIndex];
+				candidateThird = candidateList[cloud_.randomLabel(0, numberOfC-1)];
 				
 			      } while (candidateP == candidateThird || candidateQ == candidateThird);
 			    }
 			    
-			    dsmcParcel& parcelThirdBody = *cellParcels[candidateListThirdIndex];
-			    
+			    dsmcParcel& parcelThirdBody = *cellParcels[candidateThird];
 
-			    /*
-			      Info << "before = " << endl;
-			      Info << "P Type                  = " << parcelP.typeId() << endl;
-			      Info << "Q Type                  = " << parcelQ.typeId() << endl;
-			      Info << "third Type              = " << parcelThirdBody.typeId() << endl;			      
-			      Info << "candidateP              = " << candidateP << endl;
-			      Info << "candidateListPIndex     = " << candidateListPIndex << endl;
-			      Info << "candidateQ              = " << candidateQ << endl;
-			      Info << "candidateListQIndex     = " << candidateListQIndex << endl;
-			      Info << "candidateThird          = " << candidateThird << endl;
-			      Info << "candidateListThirdIndex = " << candidateListThirdIndex << endl;
-			      Info << "candidateListSize       = " << candidateList.size() << endl;
-			      Info << "cellParcelsSize         = " << cellParcels.size() << endl;			    
-			    */			    
-			    
 			    // so far for recombination only
 			    cloud_.reactions().reactions()[rMId]->reaction
 			    (
@@ -350,17 +300,6 @@ void noTimeCounter::collide()
 			     //candidateP,
 			     //whichSubCell
 			    );
-			    
-			    /*
-			    Info << "after = " << endl;
-			    Info << "P Type                = " << parcelP.typeId() << endl;
-			    Info << "Q Type                = " << parcelQ.typeId() << endl;
-			    Info << "third Type            = " << parcelThirdBody.typeId() << endl;
-			    Info << "candidateP            = " << candidateP << endl;
-			    Info << "candidateQ            = " << candidateQ << endl;
-			    Info << "candidateListSize     = " << candidateList.size() << endl;
-			    Info << "cellParcelsSize       = " << cellParcels.size() << endl;
-			    */
 
 			    //recombinationa occure and delete particle in list
 			    //if(!cloud_.reactions().reactions()[rMId]->relax())
@@ -400,7 +339,7 @@ void noTimeCounter::collide()
 			      candidateList.transfer(newCandidateList);
 			      candidateList.shrink();
 
-			      DynamicList<label>& subCellDelete = candidateSubList[whichSubCell[deleteCandidate]]; 
+			      DynamicList<label>& subCellDelete = candidateSubList[whichSubCell[deleteCandidate]];
 			      DynamicList<label> newSubCellPs(0);
 			      const label newIndex = findIndex(subCellDelete, deleteCandidate);
 			      
@@ -413,18 +352,15 @@ void noTimeCounter::collide()
 			      }
 			      subCellDelete.transfer(newSubCellPs);
 			      subCellDelete.shrink();
-
 			      /*
-			      Info << "after after = " << endl;
-			      Info << "P Type             = " << parcelP.typeId() << endl;
-			      Info << "Q Type             = " << parcelQ.typeId() << endl;
-			      Info << "third Type         = " << parcelThirdBody.typeId() << endl;
-			      Info << "candidateP         = " << candidateP << endl;
-			      Info << "candidateQ         = " << candidateQ << endl;
-			      Info << "candidateListSize  = " << candidateList.size() << endl;
-			      Info << "cellParcelsSize    = " << cellParcels.size() << endl;
+			      Info << "candidateP       = " << candidateP << endl;
+			      Info << "candidateQ       = " << candidateQ << endl;
+			      Info << "candidateList    = " << candidateList.size() << endl;
+			      Info << "candidateSubList = " << candidateSubList << endl;
+			      Info << "whichSubCell     = " << whichSubCell << endl;
 			      */
-			    }			   
+			    }
+			    
 			  }
 			  else
 			  {
@@ -527,7 +463,6 @@ void noTimeCounter::collide()
             infoCounter_ = 0;
         }
     }
-    
 }
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
