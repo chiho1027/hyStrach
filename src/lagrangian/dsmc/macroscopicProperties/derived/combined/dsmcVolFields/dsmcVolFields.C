@@ -1177,8 +1177,9 @@ void dsmcVolFields::calculateField()
         
         sampleCounter_ = 0;
     }
-    
-      if (time_.time().outputTime() ||  time_.time().value()==time_.time().deltaT().value() )  //|| time_.time().timeOutputValue() < time_.time().deltaT().value() )
+
+    // time_.time().outputTime() || time_.time().value()==time_.time().deltaT().value()
+      if (time_.time().outputTime())
     {
         const scalar nAvTimeSteps = nTimeSteps_;
         
@@ -2532,7 +2533,184 @@ void dsmcVolFields::calculateField()
         {
             writeOut();
         }
+	
         
+    }
+    else
+    {      
+      const label nCells = mesh_.nCells();
+
+      vibrationalT_.primitiveFieldRef() = 0.0;
+      scalarField vibTForOverallT(nCells, 0.0);      
+      scalarField totalvDofOverall(nCells, 0.0);
+
+      forAll(rhoNMean_, cell)
+      {
+	//- Rotational energy mode
+	const scalar totalrDof 
+	(
+	 rhoNMean_[cell] > SMALL
+	 ? rotationalDofMean_[cell]/rhoNMean_[cell]
+	 : 0.0
+	);
+
+	rotationalT_[cell] =
+	(
+	 rotationalDofMean_[cell] > SMALL
+	 ? 2.0*rotationalEMean_[cell]/(kB*rotationalDofMean_[cell])
+	 : 0.0
+        );
+
+	//- Vibrational energy mode
+	scalarList degreesOfFreedomSpecies(typeIds_.size(), 0.0);
+	scalarList vibTID(typeIds_.size(), 0.0);
+	List<scalarList> degreesOfFreedomMode(typeIds_.size());
+	List<scalarList> vibTMode(typeIds_.size());
+        
+	forAll(degreesOfFreedomMode, i)
+	{
+	  degreesOfFreedomMode[i].setSize
+	  (
+	   cloud_.constProps(typeIds_[i])
+	   .nVibrationalModes(), 0.0
+	  );
+	  vibTMode[i].setSize
+	  (
+	   cloud_.constProps(typeIds_[i])
+	   .nVibrationalModes(), 0.0
+	  );
+	}
+	
+	forAll(typeIds_, i)
+	{
+	  forAll(vibrationalETotal_[i], mode)
+	  {
+	    if (vibrationalETotal_[i][mode][cell] > VSMALL
+		&& nParcels_[i][cell] > SMALL
+		&& degreesOfFreedomMode.size() > SMALL)
+	    {        
+	      const scalar thetaV = 
+		cloud_.constProps(typeIds_[i]).thetaV_m(mode);
+	      
+	      const scalar vibrationalEMean = 
+		vibrationalETotal_[i][mode][cell]
+		/nParcels_[i][cell];
+	      
+	      const scalar iMean = vibrationalEMean/(kB*thetaV);
+              
+	      vibTMode[i][mode] = thetaV/log(1.0 + 1.0/iMean);
+              
+	      degreesOfFreedomMode[i][mode] = 
+		2.0*thetaV/vibTMode[i][mode] 
+		/(exp(thetaV/vibTMode[i][mode]) - 1.0);
+	      
+	      degreesOfFreedomSpecies[i] += degreesOfFreedomMode[i][mode];
+	    }
+	  }
+          
+	  forAll(degreesOfFreedomMode[i], mode)
+	  {
+	    if (degreesOfFreedomSpecies[i] > SMALL)
+	    {
+	      vibTID[i] += vibTMode[i][mode]
+		*degreesOfFreedomMode[i][mode]
+		/degreesOfFreedomSpecies[i];
+	    }
+	  }
+                    
+	  totalvDof_[cell] += degreesOfFreedomSpecies[i];
+	  
+	  if
+	  (
+	   rhoNMeanInt_[cell] > VSMALL 
+	   && rhoNMean_[cell] > VSMALL 
+	   && nParcels_[i][cell] > SMALL
+	  )
+	    {
+	      const scalar fraction = nParcels_[i][cell]
+		/rhoNMeanInt_[cell];
+	      
+	      const scalar fractionOverall = nParcels_[i][cell]
+		/rhoNMean_[cell];
+	      
+	      totalvDofOverall[cell] += 
+		totalvDof_[cell]*fractionOverall/fraction;
+	      
+	      //- TODO
+	      vibrationalT_[cell] += vibTID[i]*fraction;
+	    }
+	}
+
+	//- Electronic energy mode
+	scalar totalEDof = 0.0;
+	scalar elecT = 0.0;
+	
+	forAll(nParcels_, i) // TODO
+	{	  
+	  label nElectronicLevels = cloud_.constProps(typeIds_[i]).nElectronicLevels();
+          
+	  if (nElectronicLevels > 1 && nParcels_[i][cell] > SMALL && molsElec_[cell] > SMALL)
+	  {
+	    const scalarList& electronicEnergies = cloud_.constProps(typeIds_[i]).electronicEnergyList();
+	    const labelList& degeneracies = cloud_.constProps(typeIds_[i]).electronicDegeneracyList();
+            
+	    const scalar translationalTSpecies = 
+	      1.0/(3.0*kB)
+	      *(
+		mccSpecies_[i][cell]/nParcels_[i][cell]
+		- (
+		   cloud_.constProps(typeIds_[i]).mass()
+		   *mag(UMean_[cell])*mag(UMean_[cell])
+		   )
+		);
+	    
+	    const scalar fraction = nParcels_[i][cell]/molsElec_[cell];
+            
+	    if (translationalTSpecies > SMALL && electronicETotal_[i][cell] > VSMALL)
+	    {
+	      scalar sum1 = 0.0;
+	      scalar sum2 = 0.0;
+              
+	      forAll(electronicEnergies, ii)
+	      {
+		sum1 += degeneracies[ii]*exp(-electronicEnergies[ii]/(kB*translationalTSpecies));
+		sum2 += degeneracies[ii]*electronicEnergies[ii]/(kB*translationalTSpecies)
+		  *exp(-electronicEnergies[ii]/(kB*translationalTSpecies));
+	      }
+              
+	      if (sum1 > VSMALL && sum2 > VSMALL)
+	      {
+		const scalar electronicTSpecies =
+		  electronicETotal_[i][cell]
+		  /(kB*nParcels_[i][cell])*sum1/sum2;
+		
+		if (electronicTSpecies > SMALL && electronicTSpecies < GREAT)
+		  {
+		    elecT += fraction*electronicTSpecies;
+                    
+		    const scalar eDof =
+		      2.0*electronicETotal_[i][cell]/nParcels_[i][cell]
+		      /(kB*translationalTSpecies);
+		    
+		    totalEDof += fraction*eDof;
+		  }
+	      }
+	    }
+	  }
+	}
+	
+	electronicT_[cell] = elecT;	
+        	
+	overallT_[cell] = 
+	  ( 
+	   3.0*translationalT_[cell]
+	   + totalrDof*rotationalT_[cell]
+	   + totalvDof_[cell]*vibrationalT_[cell]
+	   + totalEDof*electronicT_[cell]
+	    ) /
+	  (3.0 + totalrDof + totalvDof_[cell] + totalEDof);
+      }
+
     }
 }
 
