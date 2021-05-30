@@ -1178,7 +1178,7 @@ void dsmcVolFields::calculateField()
         sampleCounter_ = 0;
     }
     
-      if (time_.time().outputTime() ||  time_.time().value()==time_.time().deltaT().value() )  //|| time_.time().timeOutputValue() < time_.time().deltaT().value() )
+    if (time_.time().outputTime())  //|| time_.time().timeOutputValue() < time_.time().deltaT().value() )
     {
         const scalar nAvTimeSteps = nTimeSteps_;
         
