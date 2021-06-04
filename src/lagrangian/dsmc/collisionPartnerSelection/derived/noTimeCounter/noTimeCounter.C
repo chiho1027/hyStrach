@@ -96,7 +96,7 @@ void noTimeCounter::collide()
     const List<DynamicList<dsmcParcel*>>& cellOccupancy = cloud_.cellOccupancy();
 
     const polyMesh& mesh = cloud_.mesh();
-
+   
     forAll(cellOccupancy, cellI)
     {
         const scalar deltaT = cloud_.deltaTValue(cellI);
@@ -106,7 +106,7 @@ void noTimeCounter::collide()
         const scalar& cellVolume = mesh.cellVolumes()[cellI];
 
         const label nC(cellParcels.size());
-	
+
         if (nC > 1)
         {
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -251,7 +251,7 @@ void noTimeCounter::collide()
 
                 chargeP = cloud_.constProps(parcelP.typeId()).charge();
                 chargeQ = cloud_.constProps(parcelQ.typeId()).charge();
-
+	
                 //do not allow electron-electron collisions		
                 if(!(chargeP == -1 && chargeQ == -1))
                 {
@@ -311,8 +311,8 @@ void noTimeCounter::collide()
 			      }
 			      
 			    }			    
-			    else// thridBody not in subcell
-			    {
+			    else if(nC > 2) // thridBody not in subcell and nC > 2
+			    { 
 			      do
 			      {
 				candidateListThirdIndex = cloud_.randomLabel(0, numberOfC-1);
@@ -320,36 +320,28 @@ void noTimeCounter::collide()
 				
 			      } while (candidateP == candidateThird || candidateQ == candidateThird);
 			    }
-			    
-			    dsmcParcel& parcelThirdBody = *cellParcels[candidateListThirdIndex];
-			    
 
-			    /*
-			      Info << "before = " << endl;
-			      Info << "P Type                  = " << parcelP.typeId() << endl;
-			      Info << "Q Type                  = " << parcelQ.typeId() << endl;
-			      Info << "third Type              = " << parcelThirdBody.typeId() << endl;			      
-			      Info << "candidateP              = " << candidateP << endl;
-			      Info << "candidateListPIndex     = " << candidateListPIndex << endl;
-			      Info << "candidateQ              = " << candidateQ << endl;
-			      Info << "candidateListQIndex     = " << candidateListQIndex << endl;
-			      Info << "candidateThird          = " << candidateThird << endl;
-			      Info << "candidateListThirdIndex = " << candidateListThirdIndex << endl;
-			      Info << "candidateListSize       = " << candidateList.size() << endl;
-			      Info << "cellParcelsSize         = " << cellParcels.size() << endl;			    
-			    */			    
 			    
-			    // so far for recombination only
-			    cloud_.reactions().reactions()[rMId]->reaction
-			    (
-			     parcelP,
-			     parcelQ,
-			     parcelThirdBody
-			     //candidateList,
-			     //candidateSubList,
-			     //candidateP,
-			     //whichSubCell
-			    );
+			    if( candidateListThirdIndex == -1 )
+			    {
+			      cloud_.reactions().reactions()[rMId]->reaction
+			      (
+			       parcelP,
+			       parcelQ			  
+			      );
+			    }
+			    else
+			    {
+			      dsmcParcel& parcelThirdBody = *cellParcels[candidateListThirdIndex];		    
+			   
+			      // so far for recombination only
+			      cloud_.reactions().reactions()[rMId]->reaction
+			      (
+			       parcelP,
+			       parcelQ,
+			       parcelThirdBody
+			      );
+			    }
 			    
 			    /*
 			    Info << "after = " << endl;
@@ -361,7 +353,7 @@ void noTimeCounter::collide()
 			    Info << "candidateListSize     = " << candidateList.size() << endl;
 			    Info << "cellParcelsSize       = " << cellParcels.size() << endl;
 			    */
-
+			   
 			    //recombinationa occure and delete particle in list
 			    //if(!cloud_.reactions().reactions()[rMId]->relax())
 			    if(parcelP.typeId() == -1 || parcelQ.typeId() == -1)
@@ -424,15 +416,16 @@ void noTimeCounter::collide()
 			      Info << "candidateListSize  = " << candidateList.size() << endl;
 			      Info << "cellParcelsSize    = " << cellParcels.size() << endl;
 			      */
-			    }			   
+			    }			 
 			  }
 			  else
-			  {
+			  {			    
 			    cloud_.reactions().reactions()[rMId]->reaction
 			    (
 			     parcelP,
 			     parcelQ			     
 			    );
+			    
 			    /*
 			    //if post collision energy is negtive, reselect Q particle and
 			    //recompute with samd post choosen vibrational level
@@ -491,7 +484,7 @@ void noTimeCounter::collide()
                                 cellI
                             );
                         }
-
+			
                         collisions++;
                     }
                 }	
@@ -499,13 +492,15 @@ void noTimeCounter::collide()
 
         }
     }
+    //Info << "marker10" << endl;
+    Pout << "collisions individual1 = " << collisions << endl;
 
     reduce(collisions, sumOp<label>());
-
+    //Info << "marker11" << endl;
     reduce(collisionCandidates, sumOp<label>());
-
+    //Info << "marker12" << endl;
     cloud_.sigmaTcRMax().correctBoundaryConditions();
-    
+    //Info << "marker13" << endl;
     infoCounter_++;
 
     if(infoCounter_ >= cloud_.nTerminalOutputs())

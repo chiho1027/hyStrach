@@ -1024,6 +1024,7 @@ void recombinationQK::reaction
     dsmcParcel& q
 )
 {
+  relax_ = true;
 }
 
 void  recombinationQK::outputResults(const label& counterIndex)
