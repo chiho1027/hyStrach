@@ -492,15 +492,14 @@ void noTimeCounter::collide()
 
         }
     }
-    //Info << "marker10" << endl;
-    Pout << "collisions individual1 = " << collisions << endl;
 
+    //Pout << "collisions individual1 = " << collisions << endl;
     reduce(collisions, sumOp<label>());
-    //Info << "marker11" << endl;
+    
     reduce(collisionCandidates, sumOp<label>());
-    //Info << "marker12" << endl;
+  
     cloud_.sigmaTcRMax().correctBoundaryConditions();
-    //Info << "marker13" << endl;
+  
     infoCounter_++;
 
     if(infoCounter_ >= cloud_.nTerminalOutputs())
