@@ -76,12 +76,14 @@ private:
         scalar vibrationalTemperature_;
         scalar electronicTemperature_;
 
-
         // list of number densities corresponding to the type Ids
         scalarField numberDensities_;
 
         // list of species 
         List <scalarField> accumulatedParcelsToInsert_;
+
+        //- Switch to write the no Reflections in the log file (default: false)
+        bool writeRatesToTerminal_;
 
         void setProperties();
 

@@ -158,7 +158,7 @@ void dsmcDynamicLoadBalancing::copyPolyMeshToLatestTimeFolder() const
                 const word copyPolyMesh = findTimes + "cp -r " 
                     + processorName + "$starting" + "/polyMesh " 
                     + processorName + "$latest/";
-                
+		
                 Foam::system(copyPolyMesh);
             }
         }
@@ -183,7 +183,8 @@ void dsmcDynamicLoadBalancing::perform(const int noRefinement)
     if(performBalance_)
     {      
         if (Pstream::master())
-        {   
+        {
+	  
             if (noRefinement == 0)
             {
                 copyPolyMeshToLatestTimeFolder();

@@ -192,7 +192,11 @@ dsmcReflectiveParticleMembranePatch::dsmcReflectiveParticleMembranePatch
     ),
     specularReflectionProbs_(),
     nReflections_(0),
-    nRejections_(0)
+    nRejections_(0),
+    writeRatesToTerminal_
+    (
+        dict.lookupOrDefault<Switch>("writeRatesToTerminal", false)
+    )
 
 {
     writeInTimeDir_ = false;
@@ -213,6 +217,8 @@ dsmcReflectiveParticleMembranePatch::~dsmcReflectiveParticleMembranePatch()
 
 void dsmcReflectiveParticleMembranePatch::calculateProperties()
 {
+  if(writeRatesToTerminal_)
+  {
     label nReflections = nReflections_;
     label nRejections = nRejections_;
 
@@ -230,6 +236,7 @@ void dsmcReflectiveParticleMembranePatch::calculateProperties()
             << scalar(nReflections)/scalar(nReflections+nRejections)
             << endl;
     }
+  }
 }
 
 

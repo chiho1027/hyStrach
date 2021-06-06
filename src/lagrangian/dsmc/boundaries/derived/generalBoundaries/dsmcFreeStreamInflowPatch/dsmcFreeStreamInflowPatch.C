@@ -64,7 +64,12 @@ dsmcFreeStreamInflowPatch::dsmcFreeStreamInflowPatch
     vibrationalTemperature_(),
     electronicTemperature_(),
     numberDensities_(),
-    accumulatedParcelsToInsert_()
+    accumulatedParcelsToInsert_(),
+    writeRatesToTerminal_
+    (
+        dict.lookupOrDefault<Switch>("writeRatesToTerminal", false)
+    )
+    
 {
     writeInTimeDir_ = false;
     writeInCase_ = true;
@@ -371,9 +376,10 @@ void dsmcFreeStreamInflowPatch::controlParcelsBeforeMove()
         }
     }
 
-
-    if (Pstream::parRun())
+    if( writeRatesToTerminal_ )
     {
+      if (Pstream::parRun())
+      {
         forAll(parcelsInserted, m)
         {
             reduce(parcelsToAdd[m], sumOp<scalar>());
@@ -385,9 +391,9 @@ void dsmcFreeStreamInflowPatch::controlParcelsBeforeMove()
                 <<", inserted parcels: " << parcelsInserted[m]
                 << endl;
         }
-    }
-    else
-    {
+      }
+      else
+      {
         forAll(parcelsInserted, m)
         {
             Info<< "Patch " << patchName_ << ", Specie: " 
@@ -396,6 +402,7 @@ void dsmcFreeStreamInflowPatch::controlParcelsBeforeMove()
                 <<", inserted parcels: " << parcelsInserted[m]
                 << endl;
         }
+      }
     }
 }
 

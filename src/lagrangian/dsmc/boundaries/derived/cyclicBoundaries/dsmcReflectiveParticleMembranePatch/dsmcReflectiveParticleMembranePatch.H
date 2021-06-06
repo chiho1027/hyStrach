@@ -87,6 +87,9 @@ private:
         //- Cumulative number of particle passing through the interface
         label nRejections_;
 
+        //- Switch to write the no Reflections in the log file (default: false)
+        bool writeRatesToTerminal_;
+
 
     // Private Member Functions
 
