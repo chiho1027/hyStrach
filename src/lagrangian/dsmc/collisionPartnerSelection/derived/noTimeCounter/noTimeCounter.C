@@ -190,14 +190,13 @@ void noTimeCounter::collide()
 		// If there are two or more particle in a subCell, choose
 		// another from the same cell.  If the same candidate is
 		// chosen, choose again.
-		
 		do
 		{
 		  //candidateListQIndex = cloud_.randomLabel(0, nSC-1);
 		  candidateQ = subCellPs[cloud_.randomLabel(0, nSC-1)];
 		  
 		} while (candidateP == candidateQ);
-
+		
 		for(label i=candidateQ; i>-1; i--)
 		{
 		  if(candidateList[i] == candidateQ)
@@ -217,7 +216,7 @@ void noTimeCounter::collide()
               {
 		// Select a possible second collision candidate from the
 		// whole cell.  If the same candidate is chosen, choose
-		// again.
+		// again.		
 		do
 		{
 		  candidateListQIndex = cloud_.randomLabel(0, numberOfC-1);
@@ -288,14 +287,14 @@ void noTimeCounter::collide()
 			    label candidateThird          = -1;
 			    label candidateListThirdIndex = -1;
 			    if (nSC > 2) // p, q, thirdBody all in subcell 
-			    {				
+			    {
 			      do
 			      {
 				//candidateListThirdIndex = cloud_.randomLabel(0, nSC-1);
 				candidateThird = subCellPs[cloud_.randomLabel(0, nSC-1)];
 				
-			      } while (candidateP == candidateThird || candidateQ == candidateThird);
-
+			      } while (candidateP == candidateThird || candidateQ == candidateThird);			    
+			      
 			      for(label i=candidateThird; i>-1; i--)
 			      {
 				if(candidateList[i] == candidateThird)
@@ -311,8 +310,8 @@ void noTimeCounter::collide()
 			      }
 			      
 			    }			    
-			    else if(nC > 2) // thridBody not in subcell and nC > 2
-			    { 
+			    else if(numberOfC > 2) // thridBody not in subcell and numberOfC > 2
+			    {
 			      do
 			      {
 				candidateListThirdIndex = cloud_.randomLabel(0, numberOfC-1);
@@ -333,14 +332,14 @@ void noTimeCounter::collide()
 			    else
 			    {
 			      dsmcParcel& parcelThirdBody = *cellParcels[candidateListThirdIndex];		    
-			   
+	        
 			      // so far for recombination only
 			      cloud_.reactions().reactions()[rMId]->reaction
 			      (
 			       parcelP,
 			       parcelQ,
 			       parcelThirdBody
-			      );
+			      );        
 			    }
 			    
 			    /*
@@ -416,16 +415,16 @@ void noTimeCounter::collide()
 			      Info << "candidateListSize  = " << candidateList.size() << endl;
 			      Info << "cellParcelsSize    = " << cellParcels.size() << endl;
 			      */
-			    }			 
+			    }
 			  }
 			  else
-			  {			    
+			  {
 			    cloud_.reactions().reactions()[rMId]->reaction
 			    (
 			     parcelP,
 			     parcelQ			     
 			    );
-			    
+
 			    /*
 			    //if post collision energy is negtive, reselect Q particle and
 			    //recompute with samd post choosen vibrational level

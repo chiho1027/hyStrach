@@ -230,7 +230,7 @@ public:
 
       //- calculate field
       virtual void calculateField();
-      
+  
       //- reset field if mesh has changed
       virtual void resetField();
 
@@ -246,10 +246,10 @@ public:
           return translationalT_[cellI];
       }
       
-      virtual scalar overallT(const label cellI)
-      {
-          return overallT_[cellI];
-      }
+      virtual scalar overallT(const label cellI);
+      //{
+      //    return overallT_[cellI];
+      //}
 };
 
 

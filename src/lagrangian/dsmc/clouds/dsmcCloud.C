@@ -1412,7 +1412,6 @@ void Foam::dsmcCloud::postReactionVibrationalRedistribution
   }
   else
   {
-    scalar temp = 0;
     scalar func  = 0.0;
     scalar ChiBMinusOne = remainDOF/2.0-1.0;
     if(ChiBMinusOne == 0.0)

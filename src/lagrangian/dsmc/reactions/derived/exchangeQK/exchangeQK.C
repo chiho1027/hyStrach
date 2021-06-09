@@ -209,11 +209,6 @@ scalar exchangeQK::equilibriumDistribution
   const label typeIdP = p.typeId();
 
     scalar TMacro = cloud_.fields().overallT(p.cell());
-    if(TMacro == 0.0)
-    {
-      cloud_.fields().calculateFields();
-      TMacro = cloud_.fields().overallT(p.cell());
-    }
     
     //- Collision temperature: Eq.(10) of Bird's QK paper.
     /*
@@ -485,15 +480,18 @@ void exchangeQK::testExchange
     scalar& reactionProbability,
     DynamicList<scalar>& reactPDiffVibMode
 )
-{  
+{
     const label typeIdP = p.typeId();
 
     scalar TMacro = cloud_.fields().overallT(p.cell());
+ 
+    /*
     if(TMacro == 0.0)
     {
-      cloud_.fields().calculateFields();
-      TMacro = cloud_.fields().overallT(p.cell());
+      Pout << "T = 0 !!!!" << endl;
+      TMacro = cloud_.fields().calculateTMacro(p.cell());
     }
+    */
     
     //- Collision temperature: Eq.(10) of Bird's QK paper.
     /*
@@ -506,7 +504,7 @@ void exchangeQK::testExchange
            /exp(lgamma(2.5 - omegaPQ + bCoeff_[nExIndex][0]))
         );
     */
-
+    
     scalar activationEnergy = 
       (
        aCoeff_[nExIndex][0]*pow(TMacro/273.0, bCoeff_[nExIndex][0])// changed aDash
@@ -637,14 +635,7 @@ void exchangeQK::exchange
 	}
 
 	//- Collision temperature: Eq.(10) of Bird's QK paper.	
-        scalar TMacro = cloud_.fields().overallT(p.cell());
-	
-	if(TMacro == 0.0)
-	{
-	  //cloud_.evolve_fields();
-	  cloud_.fields().calculateFields();
-	  TMacro = cloud_.fields().overallT(p.cell());
-	}
+        scalar TMacro = cloud_.fields().overallT(p.cell());      
 	
 	/*
 	scalar TColl = (translationalEnergy/physicoChemical::k.value())/(2.5 - reverseOmega);

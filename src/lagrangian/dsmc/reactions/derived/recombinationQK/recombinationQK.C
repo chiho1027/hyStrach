@@ -306,12 +306,6 @@ void recombinationQK::testRecombination
   {
     scalar TMacro = cloud_.fields().overallT(p.cell());
     
-    if(TMacro == 0.0)
-    {
-      cloud_.fields().calculateFields();
-      TMacro = cloud_.fields().overallT(p.cell());
-    }
-    
     VColl = aCoeff_[nR]*pow(TMacro/273.0, bCoeff_[nR])*VRef;
   }
   else
@@ -452,11 +446,6 @@ void recombinationQK::recombination
     */
 
     scalar TMacro = cloud_.fields().overallT(p.cell());
-    if(TMacro == 0.0)
-    {
-      cloud_.fields().calculateFields();
-      TMacro = cloud_.fields().overallT(p.cell());
-    }
     
     label  exciteMode = 0;
     if(thetaVProduct.size() > 1)

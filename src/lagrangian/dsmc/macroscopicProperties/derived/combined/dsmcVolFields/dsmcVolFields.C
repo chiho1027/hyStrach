@@ -946,10 +946,10 @@ void dsmcVolFields::calculateField()
     const scalar NAvo = physicoChemical::NA.value();
     
     if (sampleInterval_ <= sampleCounter_)
-    {
+    {      
         nTimeSteps_ += 1.0;
         const scalar nAvTimeSteps = nTimeSteps_;
-        
+
         if (densityOnly_)
         {
             forAllConstIter(dsmcCloud, cloud_, iter)
@@ -998,7 +998,7 @@ void dsmcVolFields::calculateField()
                         vibrationalETotal_[iD][mode][cell] += eVib_m;
                         vibEn += eVib_m;
                     }
-                    
+
                     rhoNMean_[cell] += 1.0;
                     rhoNInstantaneous_[cell] += 1.0;
                     rhoMMean_[cell] += mass;
@@ -1008,13 +1008,12 @@ void dsmcVolFields::calculateField()
                     rotationalDofMean_[cell] += rotationalDof;
                     electronicETotal_[iD][cell] += 
                         electronicEnergies[p.ELevel()];
-                    nParcels_[iD][cell] += 1.0;
+		    nParcels_[iD][cell] += 1.0;
                     mccSpecies_[iD][cell] += massBySqMagU;
-                    
                     nParcelsXnParticle_[iD][cell] += nParticles;
                     rhoNMeanXnParticle_[cell] += nParticles;
                     rhoMMeanXnParticle_[cell] += mass*nParticles;
-                    momentumMeanXnParticle_[cell] += mass*(p.U())*nParticles;
+		    momentumMeanXnParticle_[cell] += mass*(p.U())*nParticles;
                     linearKEMeanXnParticle_[cell] += massBySqMagU*nParticles;
                     
                     muu_[cell] += mass*sqr(p.U().x());
@@ -1138,7 +1137,7 @@ void dsmcVolFields::calculateField()
             forAll(typeIds_, i)
             {
                 const label typeId = typeIds_[i];
-                
+   
                 forAll(mesh_.boundaryMesh(), j)
                 {                
                     forAll(mesh_.boundaryMesh()[j], k)
@@ -1159,7 +1158,7 @@ void dsmcVolFields::calculateField()
                         speciesRhoNElecBF_[j][k] += cloud_.boundaryFluxMeasurements().rhoNElecBF()[typeId][j][k];
                     }
                 }
-                
+       
                 forAll(evmsBF_[i], mode)
                 {
                     forAll(mesh_.boundaryMesh(), j)
@@ -1172,7 +1171,9 @@ void dsmcVolFields::calculateField()
                         }
                     }
                 }
+
             }
+
         }
         
         sampleCounter_ = 0;
@@ -1182,7 +1183,7 @@ void dsmcVolFields::calculateField()
       if (time_.time().outputTime())
     {
         const scalar nAvTimeSteps = nTimeSteps_;
-        
+  
         if (densityOnly_)
         {
             forAll(rhoNMean_, cell)
@@ -1221,7 +1222,7 @@ void dsmcVolFields::calculateField()
         else
         {
             const label nCells = mesh_.nCells();
-            
+     
             vibrationalT_.primitiveFieldRef() = 0.0;
             scalarField vibTForOverallT(nCells, 0.0);
             
@@ -1310,7 +1311,7 @@ void dsmcVolFields::calculateField()
                 scalarList vibTID(typeIds_.size(), 0.0);
                 List<scalarList> degreesOfFreedomMode(typeIds_.size());
                 List<scalarList> vibTMode(typeIds_.size());
-                
+    
                 forAll(degreesOfFreedomMode, i)
                 {
                     degreesOfFreedomMode[i].setSize
@@ -1363,7 +1364,7 @@ void dsmcVolFields::calculateField()
                     }
                     
                     totalvDof_[cell] += degreesOfFreedomSpecies[i];
-
+        
                     if
                     (
                          rhoNMeanInt_[cell] > VSMALL 
@@ -1388,7 +1389,7 @@ void dsmcVolFields::calculateField()
                 //- Electronic energy mode
                 scalar totalEDof = 0.0;
                 scalar elecT = 0.0;
-		
+        
                 forAll(nParcels_, i) // TODO
                 {
                     /*const scalarList& electronicEnergies = 
@@ -1538,7 +1539,7 @@ void dsmcVolFields::calculateField()
                 }
 
                 electronicT_[cell] = elecT;*/
-		
+
                 //- Overall temperature
                 overallT_[cell] = 
                     ( 
@@ -1548,7 +1549,7 @@ void dsmcVolFields::calculateField()
                         + totalEDof*electronicT_[cell]
                     ) /
                     (3.0 + totalrDof + totalvDof_[cell] + totalEDof);
-
+        
 		/*
 		Info << "Dr = " << totalrDof << endl;
 		Info << "Dv = " <<totalvDof_[cell] << endl;
@@ -2401,7 +2402,7 @@ void dsmcVolFields::calculateField()
             fD_.write();
             tau_.write();
         }
-        
+	
         //- reset
         if (time_.resetFieldsAtOutput())
         {
@@ -2536,184 +2537,7 @@ void dsmcVolFields::calculateField()
 	
         
     }
-    else
-    {      
-      const label nCells = mesh_.nCells();
-
-      vibrationalT_.primitiveFieldRef() = 0.0;
-      scalarField vibTForOverallT(nCells, 0.0);      
-      scalarField totalvDofOverall(nCells, 0.0);
-
-      forAll(rhoNMean_, cell)
-      {
-	//- Rotational energy mode
-	const scalar totalrDof 
-	(
-	 rhoNMean_[cell] > SMALL
-	 ? rotationalDofMean_[cell]/rhoNMean_[cell]
-	 : 0.0
-	);
-
-	rotationalT_[cell] =
-	(
-	 rotationalDofMean_[cell] > SMALL
-	 ? 2.0*rotationalEMean_[cell]/(kB*rotationalDofMean_[cell])
-	 : 0.0
-        );
-
-	//- Vibrational energy mode
-	scalarList degreesOfFreedomSpecies(typeIds_.size(), 0.0);
-	scalarList vibTID(typeIds_.size(), 0.0);
-	List<scalarList> degreesOfFreedomMode(typeIds_.size());
-	List<scalarList> vibTMode(typeIds_.size());
-        
-	forAll(degreesOfFreedomMode, i)
-	{
-	  degreesOfFreedomMode[i].setSize
-	  (
-	   cloud_.constProps(typeIds_[i])
-	   .nVibrationalModes(), 0.0
-	  );
-	  vibTMode[i].setSize
-	  (
-	   cloud_.constProps(typeIds_[i])
-	   .nVibrationalModes(), 0.0
-	  );
-	}
-	
-	forAll(typeIds_, i)
-	{
-	  forAll(vibrationalETotal_[i], mode)
-	  {
-	    if (vibrationalETotal_[i][mode][cell] > VSMALL
-		&& nParcels_[i][cell] > SMALL
-		&& degreesOfFreedomMode.size() > SMALL)
-	    {        
-	      const scalar thetaV = 
-		cloud_.constProps(typeIds_[i]).thetaV_m(mode);
-	      
-	      const scalar vibrationalEMean = 
-		vibrationalETotal_[i][mode][cell]
-		/nParcels_[i][cell];
-	      
-	      const scalar iMean = vibrationalEMean/(kB*thetaV);
-              
-	      vibTMode[i][mode] = thetaV/log(1.0 + 1.0/iMean);
-              
-	      degreesOfFreedomMode[i][mode] = 
-		2.0*thetaV/vibTMode[i][mode] 
-		/(exp(thetaV/vibTMode[i][mode]) - 1.0);
-	      
-	      degreesOfFreedomSpecies[i] += degreesOfFreedomMode[i][mode];
-	    }
-	  }
-          
-	  forAll(degreesOfFreedomMode[i], mode)
-	  {
-	    if (degreesOfFreedomSpecies[i] > SMALL)
-	    {
-	      vibTID[i] += vibTMode[i][mode]
-		*degreesOfFreedomMode[i][mode]
-		/degreesOfFreedomSpecies[i];
-	    }
-	  }
-                    
-	  totalvDof_[cell] += degreesOfFreedomSpecies[i];
-	  
-	  if
-	  (
-	   rhoNMeanInt_[cell] > VSMALL 
-	   && rhoNMean_[cell] > VSMALL 
-	   && nParcels_[i][cell] > SMALL
-	  )
-	    {
-	      const scalar fraction = nParcels_[i][cell]
-		/rhoNMeanInt_[cell];
-	      
-	      const scalar fractionOverall = nParcels_[i][cell]
-		/rhoNMean_[cell];
-	      
-	      totalvDofOverall[cell] += 
-		totalvDof_[cell]*fractionOverall/fraction;
-	      
-	      //- TODO
-	      vibrationalT_[cell] += vibTID[i]*fraction;
-	    }
-	}
-
-	//- Electronic energy mode
-	scalar totalEDof = 0.0;
-	scalar elecT = 0.0;
-	
-	forAll(nParcels_, i) // TODO
-	{	  
-	  label nElectronicLevels = cloud_.constProps(typeIds_[i]).nElectronicLevels();
-          
-	  if (nElectronicLevels > 1 && nParcels_[i][cell] > SMALL && molsElec_[cell] > SMALL)
-	  {
-	    const scalarList& electronicEnergies = cloud_.constProps(typeIds_[i]).electronicEnergyList();
-	    const labelList& degeneracies = cloud_.constProps(typeIds_[i]).electronicDegeneracyList();
-            
-	    const scalar translationalTSpecies = 
-	      1.0/(3.0*kB)
-	      *(
-		mccSpecies_[i][cell]/nParcels_[i][cell]
-		- (
-		   cloud_.constProps(typeIds_[i]).mass()
-		   *mag(UMean_[cell])*mag(UMean_[cell])
-		   )
-		);
-	    
-	    const scalar fraction = nParcels_[i][cell]/molsElec_[cell];
-            
-	    if (translationalTSpecies > SMALL && electronicETotal_[i][cell] > VSMALL)
-	    {
-	      scalar sum1 = 0.0;
-	      scalar sum2 = 0.0;
-              
-	      forAll(electronicEnergies, ii)
-	      {
-		sum1 += degeneracies[ii]*exp(-electronicEnergies[ii]/(kB*translationalTSpecies));
-		sum2 += degeneracies[ii]*electronicEnergies[ii]/(kB*translationalTSpecies)
-		  *exp(-electronicEnergies[ii]/(kB*translationalTSpecies));
-	      }
-              
-	      if (sum1 > VSMALL && sum2 > VSMALL)
-	      {
-		const scalar electronicTSpecies =
-		  electronicETotal_[i][cell]
-		  /(kB*nParcels_[i][cell])*sum1/sum2;
-		
-		if (electronicTSpecies > SMALL && electronicTSpecies < GREAT)
-		  {
-		    elecT += fraction*electronicTSpecies;
-                    
-		    const scalar eDof =
-		      2.0*electronicETotal_[i][cell]/nParcels_[i][cell]
-		      /(kB*translationalTSpecies);
-		    
-		    totalEDof += fraction*eDof;
-		  }
-	      }
-	    }
-	  }
-	}
-	
-	electronicT_[cell] = elecT;	
-        	
-	overallT_[cell] = 
-	  ( 
-	   3.0*translationalT_[cell]
-	   + totalrDof*rotationalT_[cell]
-	   + totalvDof_[cell]*vibrationalT_[cell]
-	   + totalEDof*electronicT_[cell]
-	    ) /
-	  (3.0 + totalrDof + totalvDof_[cell] + totalEDof);
-      }
-
-    }
 }
-
 
 //- reset fields when mesh is edited
 void dsmcVolFields::resetField()
@@ -2945,6 +2769,232 @@ void dsmcVolFields::updateProperties(const dictionary& newDict)
     //- the main properties should be updated first
     updateBasicFieldProperties(newDict);
 }
+
+scalar dsmcVolFields::overallT(const label cell)
+{
+  if( overallT_[cell] == 0)
+  {
+    const scalar kB = physicoChemical::k.value();
+
+    scalar translationalT = 0.0;
+
+    scalar nAvTimeSteps = 1.0;
+    scalar nSimulateParticles = 0.0;    
+    scalar rhoNMeanXnParticle = 0.0;
+    scalar rhoMMeanXnParticle = 0.0;
+    scalar linearKEMeanXnParticle = 0.0;
+    vector momentumMeanXnParticle = vector::zero;
+
+    scalar rotationalEMean = 0.0;
+    scalar rotationalDofMean = 0.0;
+
+    scalar rhoNMeanInt = 0.0;
+    scalarList nParcels(typeIds_.size(), 0.0);
+ 
+    List < scalarField > vibrationalETotal;
+    vibrationalETotal.setSize(typeIds_.size());
+      
+    forAll(typeIds_, i)
+    {
+      vibrationalETotal[i].setSize
+	(cloud_.constProps(typeIds_[i]).nVibrationalModes(),
+	 0.0
+        );
+    }
+    
+    forAllConstIter(dsmcCloud, cloud_, iter)
+    {
+      const dsmcParcel& p = iter();
+      const label iD = findIndex(typeIds_, p.typeId());
+      
+      if (iD != -1 && p.isFree())
+      {
+	const dsmcParcel::constantProperties& cP = cloud_.constProps(p.typeId());
+        
+	const label cellI = p.cell();
+	if(cellI == cell)
+	{
+	  const scalar nParticles = cloud_.nParticles(cellI);
+	  const scalar mass = cP.mass();	  
+	  const scalar massBySqMagU = mass*(p.U() & p.U());	
+	  
+	  nSimulateParticles += 1.0;
+	  rhoNMeanXnParticle += nParticles;
+	  rhoMMeanXnParticle += mass*nParticles;
+	  momentumMeanXnParticle += mass*(p.U())*nParticles;
+	  linearKEMeanXnParticle += massBySqMagU*nParticles;
+
+	  const scalar rotationalDof = cP.rotationalDegreesOfFreedom();
+	  rotationalEMean += p.ERot();
+	  rotationalDofMean += rotationalDof;
+
+	  nParcels[iD] += 1.0;
+	  if (rotationalDof > 0)
+	  {
+	    rhoNMeanInt += 1.0;
+	  }
+	  
+	  forAll(cP.thetaV(), mode)
+	  {
+	    const scalar eVib_m = cP.eVib_m(mode, p.vibLevel()[mode]);	    
+	    vibrationalETotal[iD][mode] += eVib_m;
+	  }
+	  
+	}  
+      }
+    }
+	
+    if (nSimulateParticles > 1e-3)
+    {                  
+      const scalar cellVolume = mesh_.cellVolumes()[cell];
+      
+      const scalar rhoNMean_overallT = rhoNMeanXnParticle
+	/(nAvTimeSteps*cellVolume);
+      const scalar rhoMMean_overallT = rhoMMeanXnParticle
+	/(nAvTimeSteps*cellVolume);
+      
+      const vector UMean = momentumMeanXnParticle
+	/rhoMMeanXnParticle;
+      
+      const scalar linearKEMean = 0.5
+	*linearKEMeanXnParticle
+	/(cellVolume*nAvTimeSteps);
+      
+      //- Translational temperature
+      translationalT = 
+	2.0/(3.0*kB*rhoNMean_overallT)
+	*(
+	  linearKEMean - 0.5*rhoMMean_overallT
+	  *(
+	    UMean & UMean
+	    )
+	  );
+    }
+    else
+    {
+      // not zero so that weighted decomposition still works
+      //dsmcRhoNMean_[cell] = 0.001; 
+      //dsmcRhoN_[cell] = 0.001;
+      //rhoN_[cell] = 0.0;
+      //rhoM_[cell] = 0.0;
+      //UMean_[cell] = vector::zero;
+      translationalT = 0.0;
+
+      Info << "no particle in cell ! " << endl;
+      
+      //p_[cell] = 0.0;
+    }
+    
+    //- Rotational energy mode
+    const scalar totalrDof 
+    (
+     nSimulateParticles > SMALL
+     ? rotationalDofMean/nSimulateParticles
+     : 0.0
+    );
+
+    const scalar rotationalT =
+    (
+     rotationalDofMean > SMALL
+     ? 2.0*rotationalEMean/(kB*rotationalDofMean)
+     : 0.0
+    );
+
+    //- Vibrational energy mode
+    scalarList degreesOfFreedomSpecies(typeIds_.size(), 0.0);
+    scalarList vibTID(typeIds_.size(), 0.0);
+    List<scalarList> degreesOfFreedomMode(typeIds_.size());
+    List<scalarList> vibTMode(typeIds_.size());
+        
+    forAll(degreesOfFreedomMode, i)
+    {
+      degreesOfFreedomMode[i].setSize
+      (
+       cloud_.constProps(typeIds_[i])
+       .nVibrationalModes(), 0.0
+      );
+      vibTMode[i].setSize
+      (
+       cloud_.constProps(typeIds_[i])
+       .nVibrationalModes(), 0.0
+      );
+    }
+
+    scalar totalvDof = 0.0;
+    scalar vibT = 0.0;
+
+    forAll(typeIds_, i)
+    {
+      forAll(vibrationalETotal[i], mode)
+      {
+	if (vibrationalETotal[i][mode] > VSMALL
+	    && nParcels[i] > SMALL
+	    && degreesOfFreedomMode.size() > SMALL)
+	  {        
+	    const scalar thetaV = 
+	      cloud_.constProps(typeIds_[i]).thetaV_m(mode);
+	    
+	    const scalar vibrationalEMean = 
+	      vibrationalETotal[i][mode]
+	      /nParcels[i];
+	      
+	    const scalar iMean = vibrationalEMean/(kB*thetaV);
+            
+	    vibTMode[i][mode] = thetaV/log(1.0 + 1.0/iMean);
+            
+	    degreesOfFreedomMode[i][mode] = 
+	      2.0*thetaV/vibTMode[i][mode] 
+	      /(exp(thetaV/vibTMode[i][mode]) - 1.0);
+	    
+	    degreesOfFreedomSpecies[i] += degreesOfFreedomMode[i][mode];
+	  }
+      }
+
+      forAll(degreesOfFreedomMode[i], mode)
+      {
+	if (degreesOfFreedomSpecies[i] > SMALL)
+	{
+	  vibTID[i] += vibTMode[i][mode]
+	    *degreesOfFreedomMode[i][mode]
+	    /degreesOfFreedomSpecies[i];
+	}
+      }
+                    
+      totalvDof += degreesOfFreedomSpecies[i];
+
+      if
+      (
+       rhoNMeanInt > VSMALL 
+       && nSimulateParticles > VSMALL 
+       && nParcels[i]> SMALL
+      )
+      {
+	const scalar fraction = nParcels[i]
+	  /rhoNMeanInt;
+	      
+	//- TODO
+	vibT += vibTID[i]*fraction;
+      }
+    }
+    
+    // without calculate elecT
+    //const scalar overallT =
+    overallT_[cell] =
+    ( 
+     3.0*translationalT
+     + totalrDof*rotationalT
+     + totalvDof*vibT
+    ) /
+    (3.0 + totalrDof + totalvDof );
+    
+    return overallT_[cell];
+  }
+  else
+  {
+    return overallT_[cell];
+  }
+}
+  
 
 } // End namespace Foam
 
