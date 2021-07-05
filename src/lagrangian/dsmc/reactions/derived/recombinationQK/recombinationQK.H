@@ -126,7 +126,7 @@ protected:
 	  const scalar translationalEnergy
 	);
   
-        scalar computeDensity();
+        void computeDensity(const label nR);
 
 public:
 

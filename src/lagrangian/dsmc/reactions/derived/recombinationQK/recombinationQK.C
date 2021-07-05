@@ -140,28 +140,23 @@ label recombinationQK::selectThirdBody()
 }
   */
 
-scalar recombinationQK::computeDensity()
+void recombinationQK::computeDensity(const label nR)
 {
-  scalar numberDensity = 0.0;
-  const scalar volume = volume_;
   const List< DynamicList<dsmcParcel*> >& cellOccupancy = cloud_.cellOccupancy();
 
-  label totParticle = 0;
-  forAll(cellOccupancy, c)
-  {    
-    totParticle += cellOccupancy[c].size();
-  }
+  //claculate local cell volume
+  //it is nassasary calculate if AMR 
   /*
   volume_ = 0.0;
   forAll(cellOccupancy, c)
   {
     volume_ += mesh_.cellVolumes()[c];
   }
-
-  scalar volume = volume_;
-  label  molsC  = 0;
   */
-  /*
+  
+  const scalar volume = volume_;
+  
+  label  molsC  = 0;
   forAll(cellOccupancy, c)
   {
     const List<dsmcParcel*>& parcelsInCell = cellOccupancy[c];
@@ -176,7 +171,8 @@ scalar recombinationQK::computeDensity()
       }
     }
   }
-  
+
+  /*
   //- Parallel communication
   if(Pstream::parRun())
   {
@@ -184,10 +180,19 @@ scalar recombinationQK::computeDensity()
   }
   */
 
-  numberDensity = (totParticle*cloud().nParticle())/volume;
+  /*  
+  label totParticle = 0;
+  forAll(cellOccupancy, c)
+  {    
+    totParticle += cellOccupancy[c].size();
+  }
+
+  const scalar numberDensity = (totParticle*cloud().nParticle())/volume;
   
-  return numberDensity;
-  //rhoC_[nR] = (molsC*cloud().nParticle())/volume;
+  //return numberDensity;
+  */
+  
+  rhoC_[nR] = (molsC*cloud().nParticle())/volume;
 }
 
 void recombinationQK::postReactionVibrationalRedistribution
@@ -291,7 +296,8 @@ void recombinationQK::testRecombination
 )
 {  
   // compute overall number density
-  const scalar overallNumberDensity = computeDensity();
+  //const scalar overallNumberDensity = computeDensity(nR);
+  computeDensity(nR);
   
   const label typeIdP = p.typeId();
   const label typeIdQ = q.typeId();
@@ -340,13 +346,13 @@ void recombinationQK::testRecombination
   Info << "p     = " << rhoC_[nR]*VColl << endl;
   */
 
-  //reactionProbability = rhoC_[nR]*VColl;
-  reactionProbability = overallNumberDensity*VColl;
+  reactionProbability = rhoC_[nR]*VColl;
+  //reactionProbability = overallNumberDensity*VColl;
 
   if(reactionProbability > 1.0)
-    {
-      reactionProbability = 1.0;
-    }
+  {
+    reactionProbability = 1.0;
+  }
 }// end test
 
 void recombinationQK::recombination
@@ -855,15 +861,18 @@ recombinationQK::recombinationQK
     volume_(0.0),
     rhoC_()
 {
+    //claculate local cell volume 
     forAll(mesh_.cells(), c)
     {
 	volume_ += mesh_.cellVolumes()[c];
     }
     
+    /*
     if(Pstream::parRun())
     {
         reduce(volume_, sumOp<scalar>());
     }
+    */
 }
 
 
