@@ -140,7 +140,7 @@ label recombinationQK::selectThirdBody()
 }
   */
 
-void recombinationQK::computeDensity(const label nR)
+scalar recombinationQK::computeDensity()
 {
   const List< DynamicList<dsmcParcel*> >& cellOccupancy = cloud_.cellOccupancy();
 
@@ -155,7 +155,8 @@ void recombinationQK::computeDensity(const label nR)
   */
   
   const scalar volume = volume_;
-  
+
+  /*
   label  molsC  = 0;
   forAll(cellOccupancy, c)
   {
@@ -171,7 +172,7 @@ void recombinationQK::computeDensity(const label nR)
       }
     }
   }
-
+  */
   /*
   //- Parallel communication
   if(Pstream::parRun())
@@ -180,7 +181,7 @@ void recombinationQK::computeDensity(const label nR)
   }
   */
 
-  /*  
+    
   label totParticle = 0;
   forAll(cellOccupancy, c)
   {    
@@ -189,10 +190,10 @@ void recombinationQK::computeDensity(const label nR)
 
   const scalar numberDensity = (totParticle*cloud().nParticle())/volume;
   
-  //return numberDensity;
-  */
+  return numberDensity;
   
-  rhoC_[nR] = (molsC*cloud().nParticle())/volume;
+  
+  //rhoC_[nR] = (molsC*cloud().nParticle())/volume;
 }
 
 void recombinationQK::postReactionVibrationalRedistribution
@@ -296,8 +297,8 @@ void recombinationQK::testRecombination
 )
 {  
   // compute overall number density
-  //const scalar overallNumberDensity = computeDensity(nR);
-  computeDensity(nR);
+  const scalar overallNumberDensity = computeDensity();
+  //computeDensity(nR);
   
   const label typeIdP = p.typeId();
   const label typeIdQ = q.typeId();
@@ -346,8 +347,8 @@ void recombinationQK::testRecombination
   Info << "p     = " << rhoC_[nR]*VColl << endl;
   */
 
-  reactionProbability = rhoC_[nR]*VColl;
-  //reactionProbability = overallNumberDensity*VColl;
+  //reactionProbability = rhoC_[nR]*VColl;
+  reactionProbability = overallNumberDensity*VColl;
 
   if(reactionProbability > 1.0)
   {
@@ -371,6 +372,8 @@ void recombinationQK::recombination
   nTotRecombinationReactions_[nR]++;
   nRecombinationReactionsPerTimeStep_[nR]++;
 
+  //temp
+  //relax_ = true;
   //return;
   
   if (allowSplitting_)
@@ -1001,8 +1004,7 @@ void recombinationQK::reaction
     
     // Decide if an recombinaiton reaction is to occur
     if (totalReactionProbability > cloud_.rndGen().sample01<scalar>())
-    {
-      //recombination(p, q, translationalEnergy);
+    {      
       recombination(p, q, thirdBody, nR, translationalEnergy);
     }
   }
@@ -1112,7 +1114,6 @@ void  recombinationQK::outputResults(const label& counterIndex)
 	   *numberDensities[0]*numberDensities[1]*rhoC_[n]
 	   *volume
 	  );
-
 	}
 
       const scalar reactionRateRecombination = factor[n]*nTotRecombinationReactions[n];
