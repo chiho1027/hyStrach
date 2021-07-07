@@ -265,7 +265,8 @@ void Foam::VariableHardSphere::redistribute
     dsmcParcel& p,
     scalar& translationalEnergy,
     const scalar omegaPQ,
-    const bool postReaction 
+    const label QId,
+    const bool postReaction
 )
 {}
 

@@ -24,6 +24,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "constants.H"
+#include "fvc.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -33,10 +34,10 @@ inline Foam::dsmcParcel::constantProperties::constantProperties()
     d_(0)
 {}
 
-
 inline Foam::dsmcParcel::constantProperties::constantProperties
 (
-    const dictionary& dict
+    const dictionary& dict,
+    const wordList& typeIdList
 )
 :
     type_(-1),
@@ -76,11 +77,17 @@ inline Foam::dsmcParcel::constantProperties::constantProperties
             scalarList()
         )
     ),
-    Zref_(dict.lookupOrDefault<scalarList>("Zref", scalarList())),
+    ZrefPartner_(dict.lookupOrDefault<wordList>("ZrefPartner",wordList())),
+    ZrefPartnerId_(),
+    //Zref_(dict.lookupOrDefault<scalarList>("Zref", scalarList())),
+    Zref_(dict.lookup("Zref")),
+    /*
     TrefZv_
     (
         dict.lookupOrDefault<scalarList>("referenceTempForZref", scalarList())
     ),
+    */
+    TrefZv_(dict.lookup("referenceTempForZref")),
     charDissQuantumLevel_(),
     ionisationTemperature_
     (
@@ -104,7 +111,7 @@ inline Foam::dsmcParcel::constantProperties::constantProperties
             scalarList(1, 1.0)
         )
     )
-{
+{  
     if (thetaV_.size() != nVibrationalModes_)
     {
         FatalErrorIn("dsmcParcel::constantProperties::constantProperties")
@@ -120,21 +127,43 @@ inline Foam::dsmcParcel::constantProperties::constantProperties
             << thetaD_.size() << ", instead of " << nVibrationalModes_ << nl 
             << exit(FatalError);
     }
-    
-    if (Zref_.size() != nVibrationalModes_)
+
+    if (Zref_.size() != ZrefPartner_.size())
     {
         FatalErrorIn("dsmcParcel::constantProperties::constantProperties")
-            << "Number of reference vibrational relaxation numbers is"
-            << Zref_.size() << ", instead of " << nVibrationalModes_ << nl 
+            << "Number of reference vibrational relaxation numbers is "
+            << Zref_.size() << ", instead of " << ZrefPartner_.size() << nl 
             << exit(FatalError);
     }
-    
-    if (TrefZv_.size() != nVibrationalModes_)
+
+    if(Zref_.size() > 0)
     {
+      if (Zref_[0].size() != nVibrationalModes_)
+      {
+        FatalErrorIn("dsmcParcel::constantProperties::constantProperties")
+            << "Number of reference vibrational relaxation numbers is "
+            << Zref_.size() << ", instead of " << nVibrationalModes_ << nl 
+            << exit(FatalError);
+      }
+    }
+
+    if (TrefZv_.size() != ZrefPartner_.size())
+    {
+        FatalErrorIn("dsmcParcel::constantProperties::constantProperties")
+            << "Number of reference temperature for vibrational relaxation is"
+            << TrefZv_.size() << ", instead of " << ZrefPartner_.size() << nl 
+            << exit(FatalError);
+    }
+
+    if(TrefZv_.size() > 0)
+    {
+      if (TrefZv_[0].size() != nVibrationalModes_)
+      {
         FatalErrorIn("dsmcParcel::constantProperties::constantProperties")
             << "Number of reference temperature for vibrational relaxation is"
             << TrefZv_.size() << ", instead of " << nVibrationalModes_ << nl 
             << exit(FatalError);
+      }
     }
     
     if (electronicDegeneracyList_.size() != nElectronicLevels_)
@@ -211,6 +240,26 @@ inline Foam::dsmcParcel::constantProperties::constantProperties
             //- Neutral polyatomic molecule
             type_ = 30;
         }
+    }
+
+    ZrefPartnerId_.setSize(ZrefPartner_.size(), 0);
+    DynamicList<label> whereMinusOne(0);
+    forAll(ZrefPartner_, p)
+    {
+      const label index = findIndex(typeIdList, ZrefPartner_[p]);
+      if(index == -1)
+      {
+	whereMinusOne.append(p);
+      }      
+      ZrefPartnerId_[p] = index;
+    }
+
+    //only M 
+    if(whereMinusOne.size() > 1)
+    {
+      FatalErrorIn("dsmcParcel::constantProperties::constantProperties")
+	<< "Cannot find type id: " << ZrefPartner_[whereMinusOne[0]] << nl 
+	<< exit(FatalError);
     }
 }
 
@@ -348,17 +397,29 @@ Foam::dsmcParcel::constantProperties::thetaD() const
     return thetaD_;
 }
 
+inline const Foam::labelList&
+Foam::dsmcParcel::constantProperties::ZrefPartnerId() const
+{
+    return ZrefPartnerId_;
+}
+
+inline Foam::label
+Foam::dsmcParcel::constantProperties::ZrefPartnerMIndex() const
+{
+  const label index = findIndex(ZrefPartnerId_, -1);
+  return index;
+}
 
 inline Foam::scalar Foam::dsmcParcel::constantProperties::Zref_m
 (
+    const label species,
     const label mode
 ) const
 {
-    return Zref_[mode];
+    return Zref_[species][mode];
 }
 
-
-inline const Foam::scalarList&
+inline const Foam::List<Foam::scalarList>&
 Foam::dsmcParcel::constantProperties::Zref() const
 {
     return Zref_;
@@ -367,14 +428,15 @@ Foam::dsmcParcel::constantProperties::Zref() const
 
 inline Foam::scalar Foam::dsmcParcel::constantProperties::TrefZv_m
 (
+    const label species,
     const label mode
 ) const
 {
-    return TrefZv_[mode];
+    return TrefZv_[species][mode];
 }
 
 
-inline const Foam::scalarList&
+inline const Foam::List<Foam::scalarList>&
 Foam::dsmcParcel::constantProperties::TrefZv() const
 {
     return TrefZv_;

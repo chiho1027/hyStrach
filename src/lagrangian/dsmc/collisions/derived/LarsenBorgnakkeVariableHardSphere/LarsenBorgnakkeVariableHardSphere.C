@@ -138,8 +138,8 @@ void Foam::LarsenBorgnakkeVariableHardSphere::collide
           + cloud_.constProps(typeIdQ).omega()
         );
     
-    redistribute(pP, translationalEnergy, omegaPQ);
-    redistribute(pQ, translationalEnergy, omegaPQ);
+    redistribute(pP, translationalEnergy, omegaPQ, typeIdQ);
+    redistribute(pQ, translationalEnergy, omegaPQ, typeIdP);
     //redistributeOnlyOneMode(pP, pQ, translationalEnergy ,omegaPQ);
     
 
@@ -155,6 +155,7 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
     dsmcParcel& p,
     scalar& translationalEnergy,
     const scalar omegaPQ,
+    const label QId,
     const bool postReaction
 )
 {
@@ -206,9 +207,15 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
     {
         const scalarList& thetaVP = cP.thetaV();  
         const scalarList& thetaDP = cP.thetaD();
-        const scalarList& ZrefP = cP.Zref();
-        const scalarList& refTempZvP = cP.TrefZv();
+        const List<scalarList>& ZrefP = cP.Zref();
+        const List<scalarList>& refTempZvP = cP.TrefZv();
         const scalarList& preCollisionEVibP = cP.eVib(p.vibLevel());
+	
+	label partnerIndex = findIndex(cP.ZrefPartnerId(), QId);
+	if(partnerIndex == -1)
+	{
+	  partnerIndex = cP.ZrefPartnerMIndex();
+	}
 	
 	forAll(thetaVP, i)
 	{
@@ -229,9 +236,9 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
                         iMaxP,
                         thetaVP[i],
                         thetaDP[i],
-                        refTempZvP[i],
+                        refTempZvP[partnerIndex][i],
                         omegaPQ,
-                        ZrefP[i],
+                        ZrefP[partnerIndex][i],
                         EcP,
                         vibrationalRelaxationCollisionNumber_,
                         invZvFormulation_,
@@ -306,9 +313,14 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistributeOnlyOneMode
     {
         const scalarList& thetaVP = cP.thetaV();  
         const scalarList& thetaDP = cP.thetaD();
-        const scalarList& ZrefP = cP.Zref();
-        const scalarList& refTempZvP = cP.TrefZv();
+        const List<scalarList>& ZrefP = cP.Zref();
+        const List<scalarList>& refTempZvP = cP.TrefZv();
         const scalarList& preCollisionEVibP = cP.eVib(p.vibLevel());
+	label partnerIndex = findIndex(cP.ZrefPartnerId(), typeIdQ);
+	if(partnerIndex == -1)
+	{
+	  partnerIndex = cP.ZrefPartnerMIndex();
+	}
 	
 	forAll(thetaVP, i)
 	{
@@ -329,9 +341,9 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistributeOnlyOneMode
                         iMaxP,
                         thetaVP[i],
                         thetaDP[i],
-                        refTempZvP[i],
+                        refTempZvP[partnerIndex][i],
                         omegaPQ,
-                        ZrefP[i],
+                        ZrefP[partnerIndex][i],
                         EcP,
                         vibrationalRelaxationCollisionNumber_,
                         invZvFormulation_,

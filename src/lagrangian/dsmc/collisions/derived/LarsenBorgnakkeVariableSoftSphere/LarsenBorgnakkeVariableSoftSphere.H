@@ -120,6 +120,7 @@ public:
             dsmcParcel& p,
             scalar& translationalEnergy,
             const scalar omegaPQ,
+	    const label QId,
             const bool postReaction = false
         );
         

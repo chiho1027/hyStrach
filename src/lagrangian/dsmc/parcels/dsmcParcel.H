@@ -105,13 +105,19 @@ public:
 
             //- Characteristic dissociation temperature
             scalarList thetaD_;
-        
+
+            // reference vibratinal relaxationa of collision partner
+            wordList ZrefPartner_;
+
+            // reference vibratinal relaxationa of collision partner id 
+            labelList ZrefPartnerId_;
+      
             //- Reference vibrational relaxation number
-            scalarList Zref_;
+            List<scalarList> Zref_;
             
             //- Reference temperature for reference vibrational relaxation 
             //  number
-            scalarList TrefZv_;
+            List<scalarList> TrefZv_;
             
             //- Characteristic dissociation quantum level
             labelList charDissQuantumLevel_;
@@ -140,7 +146,11 @@ public:
             inline constantProperties();
 
             //- Constructor from dictionary
-            inline constantProperties(const dictionary& dict);
+            inline constantProperties
+	    (
+	      const dictionary& dict,
+	      const wordList& typeIdList
+	    );
 
 
         // Member functions
@@ -188,22 +198,28 @@ public:
             
             //- Return the characteristic dissociation temperature
             inline const scalarList& thetaD() const;
-    
+
+            //- Return the ZrefPartnerId 
+            inline const labelList& ZrefPartnerId() const;
+
+            //- Return the M index
+            inline label ZrefPartnerMIndex() const;
+      
             //- Return the characteristic vibrational relaxation number for a 
             //  given vibrational energy mode
-            inline scalar Zref_m(const label mode) const;
+            inline scalar Zref_m(const label species, const label mode) const;
             
             //- Return the characteristic vibrational relaxation number
-            inline const scalarList& Zref() const;
+            inline const List<scalarList>& Zref() const;
                       
             //- Return the reference temperature for the characteristic 
             //  vibrational relaxation number for a given vibrational energy 
             //  mode
-            inline scalar TrefZv_m(const label mode) const;
+            inline scalar TrefZv_m(const label species, const label mode) const;
             
             //- Return the reference temperature for the characteristic 
             //  vibrational relaxation number
-            inline const scalarList& TrefZv() const;
+            inline const List<scalarList>& TrefZv() const;
             
             //- Return the characteristic dissociation level for a given
             //  vibrational energy mode
@@ -1328,7 +1344,6 @@ public:
             
             //- Return access to vibrational energy
             inline labelList& vibLevel();
-
 
         // Main calculation loop
 

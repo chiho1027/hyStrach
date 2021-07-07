@@ -55,7 +55,7 @@ void Foam::dsmcCloud::buildConstProps()
 
         const dictionary& molDict(moleculeProperties.subDict(id));
 
-        constProps_[i] = dsmcParcel::constantProperties(molDict);
+        constProps_[i] = dsmcParcel::constantProperties(molDict, typeIdList_);
     }
 }
 
