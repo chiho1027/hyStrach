@@ -196,13 +196,20 @@ void noTimeCounter::collide()
 		  candidateQ = subCellPs[cloud_.randomLabel(0, nSC-1)];
 		  
 		} while (candidateP == candidateQ);
-		
-		for(label i=candidateQ; i>-1; i--)
+
+		if( candidateQ >= candidateList.size() )
 		{
-		  if(candidateList[i] == candidateQ)
+		  candidateListQIndex = candidateList.size()-1;
+		}
+		else
+		{
+		  for(label i=candidateQ; i>-1; i--)
 		  {
-		    candidateListQIndex = i;
-		    break;
+		    if(candidateList[i] == candidateQ)
+		    {
+		      candidateListQIndex = i;
+		      break;
+		    }
 		  }
 		}
 		
@@ -294,16 +301,22 @@ void noTimeCounter::collide()
 				candidateThird = subCellPs[cloud_.randomLabel(0, nSC-1)];
 				
 			      } while (candidateP == candidateThird || candidateQ == candidateThird);			    
-			      
-			      for(label i=candidateThird; i>-1; i--)
+			      if( candidateThird >= candidateList.size() )
 			      {
-				if(candidateList[i] == candidateThird)
+				candidateListThirdIndex = candidateList.size()-1;
+			      }
+			      else
+			      {
+				for(label i=candidateThird; i>-1; i--)
 				{
-				  candidateListThirdIndex = i;
-				  break;
-				}
-			      }			      
-			      
+				  if(candidateList[i] == candidateThird)
+				  {
+				    candidateListThirdIndex = i;
+				    break;
+				  }
+				}			      
+			      }
+				
 			      if(candidateListThirdIndex == -1)
 			      {
 				Info << "Not find Third particle !" << endl;
