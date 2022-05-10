@@ -170,6 +170,64 @@ void dsmcGeneralBoundary::updateTime()
 void dsmcGeneralBoundary::updateBoundaryProperties(const dictionary&)
 {}
 
+scalar dsmcGeneralBoundary::leastSquaresGradPredictValue(const scalarField& pp, const scalar sum)
+{
+  /*
+  scalar alpha = 0.0;
+  scalar beta  = 0.0;
+  
+  const scalar ppBar = sum/pp.size();
+  
+  scalar sumDt = 0.0;
+  scalar sumDtDpp = 0.0;   
+  const scalar i = (pp.size()-1.0)/2.0;
+  for (scalar j=-i; j<=i; j++)
+  {    
+    sumDtDpp += j*(pp[j+i]-ppBar);
+    sumDt += magSqr(j);
+  }
+  
+  beta  = sumDtDpp/sumDt;
+  alpha = ppBar;
+  
+  return (i+1)*beta + alpha;
+  */
+
+  return sum/pp.size();
+}
+
+vector dsmcGeneralBoundary::leastSquaresGradPredictValue(const vectorField& pp, const vector sum)
+{
+  vector forcase = vector::zero;
+  
+  forAll(pp[0], u)
+  {
+    /*
+    scalar alpha = 0.0;
+    scalar beta  = 0.0;
+  
+    const scalar ppBar = sum[u]/pp.size();
+    
+    scalar sumDt = 0.0;
+    scalar sumDtDpp = 0.0;   
+    const scalar i = (pp.size()-1.0)/2.0;
+    for (scalar j=-i; j<=i; j++)
+    {    
+      sumDtDpp += j*(pp[j+i][u]-ppBar);
+      sumDt += magSqr(j);
+    }
+  
+    beta  = sumDtDpp/sumDt;
+    alpha = ppBar;
+
+    forcase[u] = (i+1)*beta + alpha;
+    */
+    forcase[u] = sum[u]/pp.size();
+  }
+  
+  return forcase;
+}
+  
 void dsmcGeneralBoundary::setNewBoundaryFields()
 {
     //- confirm that the patch exists on the mesh

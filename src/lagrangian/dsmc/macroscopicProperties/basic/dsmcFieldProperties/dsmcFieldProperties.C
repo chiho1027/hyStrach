@@ -229,12 +229,28 @@ scalar dsmcFieldProperties::translationalT(const label cellI)
     }
 }
 
-
 scalar dsmcFieldProperties::overallT(const label cellI)
 { 
     if (fields_.size() > 0)
     {
         return fields_[0]->overallT(cellI);
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+scalar dsmcFieldProperties::correctZFactor
+(
+ const label cellI,
+ const label typeId,
+ const label vibMode
+)
+{
+    if (fields_.size() > 0)
+    {
+        return fields_[0]->correctZFactor(cellI, typeId, vibMode);
     }
     else
     {

@@ -23,7 +23,7 @@ License
     Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 Class
-    dsmcLiouFangPressureInlet
+    dsmcNeumannOutlet
 
 Description
 
@@ -34,13 +34,13 @@ Description
     specularly reflected.
 
 SourceFiles
-    dsmcLiouFangPressureInlet.C
+    dsmcNeumannOutlet.C
 
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef dsmcLiouFangPressureInlet_H
-#define dsmcLiouFangPressureInlet_H
+#ifndef dsmcNeumannOutlet_H
+#define dsmcNeumannOutlet_H
 
 #include "dsmcGeneralBoundary.H"
 #include "vector.H"
@@ -55,10 +55,10 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class dsmcLiouFangPressureInlet Declaration
+                           Class dsmcNeumannOutlet Declaration
 \*---------------------------------------------------------------------------*/
 
-class dsmcLiouFangPressureInlet
+class dsmcNeumannOutlet
 :
 	public dsmcGeneralBoundary
 {
@@ -67,30 +67,41 @@ private:
 
     // Private data
     dictionary propsDict_;
-    labelField typeIds_;
-    scalarField moleFractions_;
-    vectorField inletVelocity_;
-    vectorField previousInletVelocity_;
-    List <scalarField> accumulatedParcelsToInsert_;
-    label infoCounter_;
-    label nTimeSteps_;
-    scalar inletPressure_;
-    scalar inletTemperature_;
-    scalar theta_;
-    scalar n_; // inlet number density
     
-
+    labelList typeIds_;     
+    scalarField cellVolume_;
+    List <scalarField> accumulatedParcelsToInsert_;
+    List<scalarField> moleFractions_;    
+    vectorField outletVelocity_;
+    scalarField outletNumberDensity_;
+    scalarField outletTemperature_;
+    List<scalarField> totalMoleFractions_;
+    scalarField totalNumberDensity_;
+    scalarField totalTemperature_;
+    vectorField totalVelocity_;
+    scalarField totalRotationalEnergy_;
+    scalarField totalRotationalDof_;
+    List <scalarField> totalVibrationalEnergy_;
+    List <scalarField> vibT_;
+    List <scalarField> vDof_;  
+    label sampleNumber_;
+    List <List<scalarField> > sampleMoleFractions_;
+    List <vectorField> sampleVelocity_;
+    List <scalarField> sampleTemperature_;
+    List <scalarField> sampleNumberDensity_;
+    label nTimeSteps_;
+    
     void setProperties();
 
 public:
 
     //- Runtime type information
-    TypeName("dsmcLiouFangPressureInlet");
+    TypeName("dsmcNeumannOutlet");
 
     // Constructors
 
         //- Construct from components
-    dsmcLiouFangPressureInlet
+    dsmcNeumannOutlet
     (
         Time& t,
         const polyMesh& mesh,
@@ -100,8 +111,7 @@ public:
 
     // Destructor
 
-    ~dsmcLiouFangPressureInlet();
-
+    ~dsmcNeumannOutlet();
 
     // Member Functions
 

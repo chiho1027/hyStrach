@@ -160,10 +160,9 @@ void dissociationExchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
         // 1. Dissociation of P
         // 2. Dissociation of Q
         // 3. Exchange
-	
-	//method1
+		
 	scalar totalReactionProbability = 0.0;
-        scalarList reactionProbabilities(numberOfExchange+2, 0.0); 
+        scalarList reactionProbabilities(2+numberOfExchange, 0.0); 
 
 	const label rnDiss = cloud_.randomLabel(0, bothDiatomic);//2dissociation
 
@@ -180,7 +179,7 @@ void dissociationExchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 	  
 	  totalReactionProbability += reactionProbabilities[0];	
 	}
-	else if(rnDiss == bothDiatomic)
+	else //if(rnDiss == bothDiatomic )//&& bothDiatomic == 1)
 	{
 	  dissociationQK::testDissociation
 	  (
@@ -193,193 +192,103 @@ void dissociationExchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 	  totalReactionProbability += reactionProbabilities[1];
 	}
 
+	/*
 	//exchange probablility
+	// random choose one reaction	
 	const label rnEx = cloud_.randomLabel(0, numberOfExchange-1);
 
-	if (exchangeQK::posAtomReactant_ == 1)//exchange exsis atom ABC + D in chemicalDict
+	//method 1:random choose one vibrational mode probability
+	const label numberOfVibMode = p.vibLevel().size() + q.vibLevel().size();
+	const label randomSelectMode = cloud_.randomLabel(0, numberOfVibMode-1);
+
+	label selectPMode = 0;
+	label selectQMode = 0;
+	bool isPreact = false;
+	
+	if(p.vibLevel().size() > 0 && randomSelectMode < p.vibLevel().size())
 	{
-	  testExchange
-	  (
-	   p,
-	   translationalEnergy,
-	   omegaPQ,
-	   rnEx,
-	   reactionProbabilities[rnEx+2],
-	   pReactionPDiffVibMode[rnEx]
-	  );
-
-	  totalReactionProbability += reactionProbabilities[rnEx+2];
-	}
-	else if (exchangeQK::posAtomReactant_ == 0 )//exchange exsis atom D + ABC in chemicalDict
-	{	  
-	  testExchange
-	  (
-	   q,
-	   translationalEnergy,
-	   omegaPQ,
-	   rnEx,
-	   reactionProbabilities[rnEx+2],
-	   qReactionPDiffVibMode[rnEx]
-	  );
-
-	  totalReactionProbability += reactionProbabilities[rnEx+2];
-	}
-	else // both are moleculer
-	{	  
-	  scalar probabilitiesP = 0.0;
+	  isPreact = true;	  
+	  selectPMode = randomSelectMode;
+	  
 	  exchangeQK::testExchange
 	  (
 	   p,
 	   translationalEnergy,
 	   omegaPQ,
 	   rnEx,
-	   probabilitiesP,
-	   pReactionPDiffVibMode[rnEx]
+	   selectPMode,
+	   reactionProbabilities[2]
 	  );
 
-	  scalar probabilitiesQ = 0.0;
+	  totalReactionProbability += reactionProbabilities[2];
+	}
+	else
+	{	  	  
+	  selectQMode = randomSelectMode-p.vibLevel().size();
+	  
 	  exchangeQK::testExchange
 	  (
 	   q,
 	   translationalEnergy,
 	   omegaPQ,
 	   rnEx,
-	   probabilitiesQ,
-	   qReactionPDiffVibMode[rnEx]	     
+	   selectQMode,
+	   reactionProbabilities[2]
 	  );
-	    
-	  reactionProbabilities[rnEx+2] = probabilitiesP + probabilitiesQ;
-	  totalReactionProbability += reactionProbabilities[rnEx+2];
-	}
+
+	  totalReactionProbability += reactionProbabilities[2];
+	}	
+	*/
 	
+	//exchange method 2 	
+	const label numberOfVibMode = p.vibLevel().size() + q.vibLevel().size();
+	const label randomSelectMode = cloud_.randomLabel(0, numberOfVibMode-1);
 
-	//method 2
-	/*
-        //scalar totalReactionProbability = 0.0;
-        scalarList reactionProbabilities(2+numberOfExchange, 0.0);
-	
-	//numberofexchange + 2dissociation or numberofexchange + dissociation
-	const label rn = cloud_.randomLabel(0, numberOfExchange + bothDiatomic );
-	if (rn == 0)
+	label selectPMode = 0;
+	label selectQMode = 0;
+	bool isPreact = false;
+	      
+	if(p.vibLevel().size() > 0 && randomSelectMode < p.vibLevel().size())
 	{
-	  dissociationQK::testDissociation
-	  (
-	   p,
-	   translationalEnergy,
-	   vibModeDissoP,
-	   reactionProbabilities[0]
-	  );
-
-	  if(reactionProbabilities[0] > cloud_.rndGen().sample01<scalar>())
-	  {
-	    dissociationQK::dissociateParticleByPartner
+	  isPreact = true;
+	  selectPMode = randomSelectMode;
+	  
+	  for(label i=0; i<numberOfExchange; i++)
+	  {	      	    	    
+	    exchangeQK::testExchange
 	    (
-	     p, q, 0, vibModeDissoP, translationalEnergy
+	     p,
+	     translationalEnergy,
+	     omegaPQ,
+	     i,
+	     selectPMode,
+	     reactionProbabilities[i+2]
 	    );
-	  }	  
-	}
-	else if (rn == bothDiatomic)
-	{
-	  dissociationQK::testDissociation
-	  (
-	   q,
-	   translationalEnergy,
-	   vibModeDissoQ,
-	   reactionProbabilities[1]
-	  );
-
-	  if(reactionProbabilities[1] > cloud_.rndGen().sample01<scalar>())
-	  {
-	    dissociationQK::dissociateParticleByPartner
-	    (
-	     q, p, 1, vibModeDissoQ, translationalEnergy
-	    );
-	  }	  	    
+	      
+	    totalReactionProbability += reactionProbabilities[i+2];
+	  }
 	}
 	else
 	{
-	  if (exchangeQK::posAtomReactant_ == 1) //exchange exsis atom ABC + D in chemicalDict
-	  {
-	    exchangeQK::testExchange
-	    (
-	     p,
-	     translationalEnergy,
-	     omegaPQ,
-	     rn-1-bothDiatomic,
-	     reactionProbabilities[rn],
-	     pReactionPDiffVibMode[rn-1-bothDiatomic]
-	    );
-
-	    if(reactionProbabilities[rn] > cloud_.rndGen().sample01<scalar>())
-	    {
-	      // *****generate probability List for 'all' vibrational mode****************
-	      DynamicList<scalar> excitePList = pReactionPDiffVibMode[rn-1-bothDiatomic];
-
-	      exchange(p, q, excitePList, rn-1-bothDiatomic, translationalEnergy);
-	    }	    
-	  }
-	  else if (exchangeQK::posAtomReactant_ == 0) //exchange exsis atom D + ABC in chemicalDict
-	  {	      
+	  selectQMode = randomSelectMode-p.vibLevel().size();
+	  
+	  for(label i=0; i<numberOfExchange; i++)
+	  {	    	    
 	    exchangeQK::testExchange
 	    (
 	     q,
 	     translationalEnergy,
 	     omegaPQ,
-	     rn-1-bothDiatomic,
-	     reactionProbabilities[rn],
-	     qReactionPDiffVibMode[rn-1-bothDiatomic]
+	     i,
+	     selectQMode,
+	     reactionProbabilities[i+2]
 	    );
 
-	    if(reactionProbabilities[rn] > cloud_.rndGen().sample01<scalar>())
-	    {
-	      // *****generate probability List for 'all' vibrational mode*************
-	      DynamicList<scalar> excitePList = qReactionPDiffVibMode[rn-1-bothDiatomic];
-	      
-	      exchange(q, p, excitePList, rn-1-bothDiatomic, translationalEnergy);
-	    }	    
-	  }
-	  else // both are moleculer
-	  {
-	    scalar probabilitiesP = 0.0;
-	    exchangeQK::testExchange
-	    (
-	     p,
-	     translationalEnergy,
-	     omegaPQ,
-	     rn-1-bothDiatomic,
-	     probabilitiesP,
-	     pReactionPDiffVibMode[rn-1-bothDiatomic]
-	    );
-
-	    scalar probabilitiesQ = 0.0;
-	    exchangeQK::testExchange
-	    (
-	     q,
-	     translationalEnergy,
-	     omegaPQ,
-	     rn-1-bothDiatomic,
-	     probabilitiesQ,
-	     qReactionPDiffVibMode[rn-1-bothDiatomic]
-	    );
-	      
-	    reactionProbabilities[rn] = probabilitiesP + probabilitiesQ;
-
-	    if(reactionProbabilities[rn] > cloud_.rndGen().sample01<scalar>())
-	    {
-	      // *****generate probability List for 'all' vibrational mode****************
-	      DynamicList<scalar> excitePList = pReactionPDiffVibMode[rn-1-bothDiatomic];
-	      forAll(qReactionPDiffVibMode[rn-1-bothDiatomic], m)
-	      {
-		excitePList.append(qReactionPDiffVibMode[rn-1-bothDiatomic][m]);
-	      }
-	      
-	      exchange(p, q, excitePList, rn-1-bothDiatomic, translationalEnergy);
-	    }	      	     
-	  }
+	    totalReactionProbability += reactionProbabilities[i+2];
+	  }	  
 	}
-	*/
 	
-	//method1
+		
         //- Decide if a reaction is to occur
         if (totalReactionProbability > cloud_.rndGen().sample01<scalar>())
         {
@@ -428,36 +337,22 @@ void dissociationExchangeQK::reaction(dsmcParcel& p, dsmcParcel& q)
 			else
                         {			  
                             //- Exchange reaction
-                            if (exchangeQK::posAtomReactant_ != 0)
-                            {
-			      /////generate probability List for 'all' vibrational mode/////
-			      DynamicList<scalar> excitePList = pReactionPDiffVibMode[i-2];
-			      forAll(qReactionPDiffVibMode[i-2], m)
-			      {
-				excitePList.append(qReactionPDiffVibMode[i-2][m]);
-			      }
-			      
+			  if( isPreact )
+			  {			      
 			      exchangeQK::exchange
 			      (
-			       p, q, excitePList, (i-2), translationalEnergy
+			       p, q, selectPMode, i-2, translationalEnergy
 			      );
-                            }
-                            else
-                            {
-			      /////generate probability List for 'all' vibrational mode/////
-			      DynamicList<scalar> excitePList = qReactionPDiffVibMode[i-2];
-			      forAll(pReactionPDiffVibMode[i-2], m)
-			      {
-				excitePList.append(pReactionPDiffVibMode[i-2][m]);
-			      }
-			      
+			  }
+			  else
+                          {			      
 			      exchangeQK::exchange
                               (
-			       q, p, excitePList, (i-2), translationalEnergy
+			       q, p, selectQMode, i-2, translationalEnergy
 			      );
-                            }
-                            //- There can't be another reaction: break
-                            break;
+			  }
+			  //- There can't be another reaction: break
+			  break;
                         }
                     }
                 }

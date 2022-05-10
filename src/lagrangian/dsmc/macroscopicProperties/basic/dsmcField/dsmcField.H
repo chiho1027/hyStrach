@@ -208,9 +208,12 @@ public:
 //         virtual const propertyField& field() const = 0;
 
         virtual scalar translationalT(const label cellI) = 0;
-        
-        virtual scalar overallT(const label cellI) = 0;
 
+        virtual scalar vibrationalT(const label cellI) = 0;
+  
+        virtual scalar overallT(const label cellI) = 0;
+  
+        virtual scalar correctZFactor(const label cellI, const label typeId, const label vibMode) = 0;
 };
 
 

@@ -81,8 +81,8 @@ protected:
 
     // Protected Member Functions
 
-        virtual void setProperties();
-        
+        virtual void setProperties();     
+
         void testDissociation
         (
             const dsmcParcel& p,

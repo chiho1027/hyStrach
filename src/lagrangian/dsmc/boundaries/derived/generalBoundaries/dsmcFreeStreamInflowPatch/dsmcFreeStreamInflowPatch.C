@@ -148,7 +148,7 @@ void dsmcFreeStreamInflowPatch::controlParcelsBeforeMove()
                 /(2.0*sqrtPi*cloud_.nParticles(patchId_, f));
         }
     }
-
+    
     labelField parcelsInserted(typeIds_.size(), 0);
     labelField parcelsToAdd(typeIds_.size(), 0);
 

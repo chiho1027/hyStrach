@@ -487,7 +487,7 @@ public:
 	 labelList* vibLevel,
 	 scalar& Ec
 	);
-  
+
         // - Generate a LB post-collision vibrational energy
         label postCollisionVibrationalEnergyLevel
         (
@@ -500,9 +500,26 @@ public:
             const scalar omega,
             const scalar Zref,
             const scalar Ec,
+	    const scalar correctZFactor,
             const scalar fixedZv = 0,
             const label invZvFormulation = 2,
             const label cellI = 0
+        );
+  
+        // - Generate a LB post-collision vibrational energy
+        scalar postCollisionVibrationalEnergyLevelOneMode
+        (
+            const label iMax,
+            const scalar thetaV,
+            const scalar thetaD,
+            const scalar refTempZv,
+            const scalar omega,
+            const scalar Zref,
+            const scalar Ec,
+	    const scalar correctZFactor,
+            const scalar fixedZv = 0,
+            const label invZvFormulation = 2,
+            const label cellI = 0	    
         );
         
         // - Generate a LB post-collision electronic energy level

@@ -96,7 +96,7 @@ protected:
         volScalarField velocityError_;
         volScalarField temperatureError_;
         volScalarField pressureError_;
-        //volScalarField vibE_; //new/////////////
+      //volScalarField vibE_; //new/////////////
         volVectorField UMean_;
         volVectorField fD_;
         volVectorField heatFluxVector_;
@@ -179,6 +179,7 @@ protected:
         List<List<scalarField>> mccSpeciesBF_;
         List<List<scalarField>> vibTBF_;
         List<List<scalarField>> vDofBF_;
+        List<List<scalarField>> correctZFactor_;//new
         List<List<List<scalarField>>> evmsBF_;
         
         //- Wall unit vectors - temporary storage, should be done in boundaries/patch
@@ -245,11 +246,19 @@ public:
       {
           return translationalT_[cellI];
       }
+
+      virtual scalar vibrationalT(const label cellI)
+      {
+          return vibrationalT_[cellI];
+      }
       
       virtual scalar overallT(const label cellI);
       //{
       //    return overallT_[cellI];
       //}
+
+      virtual scalar correctZFactor(const label cellI, const label typeId, const label vibMode);
+
 };
 
 

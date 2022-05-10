@@ -115,8 +115,12 @@ public:
         inline const List<label>& fieldIds() const;
         
         scalar translationalT(const label cellI);
-        
+
+        scalar vibrationalT(const label cellI);
+  
         scalar overallT(const label cellI);
+
+        scalar correctZFactor(const label cellI, const label typeId, const label vibMode);
 
     // Ostream Operator
 

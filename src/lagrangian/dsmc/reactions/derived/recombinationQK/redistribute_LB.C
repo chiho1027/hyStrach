@@ -1,40 +1,54 @@
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    // initialized post recombinationproduct viblevel
-    labelList vibLevelMole(cloud_.constProps(typeIdRecombinedMol).nVibrationalModes(), 0);
-    
-    //- Trial L-B redistribution (vibration)  //bu i ding
-    forAll(thetaVProduct, m)
-    {
-      label iMaxProduct = collisionEnergy/(physicoChemical::k.value()*thetaVProduct[m]);
-      
-      label vibLevelProduct =
-	cloud_.postCollisionVibrationalEnergyLevel
-	(
-	 true,
-	 0,// vibrationlevel
-	 iMaxProduct,
-	 cloud_.constProps(typeIdRecombinedMol).thetaV()[m],
-	 cloud_.constProps(typeIdRecombinedMol).thetaD()[m],
-	 cloud_.constProps(typeIdRecombinedMol).TrefZv()[m],
-	 omegaProduct,
-	 cloud_.constProps(typeIdRecombinedMol).Zref()[m],
-	 collisionEnergy
-	 );
-      
-      vibLevelMole[m] =  vibLevelProduct;
-      //- Relative translational energy after vibrational energy redistribution
-      collisionEnergy -= (vibLevelProduct*cloud_.constProps(typeIdRecombinedMol).thetaV()[m]*physicoChemical::k.value()); 
-    }
-    
-    //- Trial L-B redistribution (rotation)
-    const scalar energyRatio =
-      cloud_.postCollisionRotationalEnergy
-      (
-       cloud_.constProps(typeIdRecombinedMol).rotationalDegreesOfFreedom(),
-       2.5 - omegaProduct
-       );    
-    const scalar ERotProduct = energyRatio*collisionEnergy;
-    //- Relative translational energy after rotational energy redistribution
-    collisionEnergy -= ERotProduct;
+    ////////////////////////strat//////////////////////////////////////    
+    //redistribution nonExcite  internal collisional energy
+    scalar collisionEnergy = productThirdBodyTranslationalEnergy + translationalEnergy + heatOfReactionRecombinationJoules_;
+    scalar remainDof       = 2.0*(2.5-reverseOmega) + rotDofProduct;
 
-    ////////////////////////////////////////////////
+    //first is vibrational energy , second is rotational energy
+    //calculate pre-collid particles
+    if( cloud_.constProps(typeIdP).type() >= 20)
+    {
+      const scalar ERotP = p.ERot();
+      const scalar EVibP = cloud_.constProps(typeIdP).eVib_tot(p.vibLevel());          
+
+      collisionEnergy += (EVibP + ERotP);      
+    }
+    else if( cloud_.constProps(typeIdQ).type() >= 20)
+    {	
+      const scalar ERotQ = q.ERot();
+      const scalar EVibQ = cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel());
+
+      collisionEnergy += (EVibQ + ERotQ);    
+    }        
+
+    labelList* vibLevel       = &vibLevelProduct;    
+    forAll(thetaVProduct ,m)
+    {      
+      //sample with discrete LB // present used
+      cloud_.postReactionVibrationalRedistribution
+      (
+       m,
+       remainDof,
+       thetaVProduct,
+       vibLevel,
+       collisionEnergy
+      );			  
+    }
+
+    //redistribute pruduct of rotational energy
+    remainDof                      -= rotDofProduct;
+    const scalar energyRatioProduct = cloud_.postCollisionRotationalEnergy( rotDofProduct, remainDof/2.0 );
+    const scalar ERotProduct        = energyRatioProduct*collisionEnergy;
+    collisionEnergy                -= ERotProduct;
+        
+    //calculate post velocity using remain translational energy of product + thirdbody
+    //vector thirdBodyU = thirdBody.U();//temp   
+    scalar relVelProuduct = sqrt(2.0*collisionEnergy/mR);
+    cloud_.binaryCollision().postCollisionVelocities
+    (
+     typeIdThirdBody,
+     typeIdRecombinedMole,
+     thirdBody.U(),
+     postCollisionU,
+     relVelProuduct
+    );      
+    /////////////////////end////////////////////////////////

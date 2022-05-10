@@ -97,7 +97,7 @@ void boundaryMeasurements::writenAbsorbedParcels()
 void boundaryMeasurements::writePatchFields()
 {
     //- Temperature field
-    tmp<volScalarField> tboundaryT
+    tmp<volScalarField> tboundaryT 
     (
         new volScalarField
         (
@@ -337,7 +337,7 @@ void boundaryMeasurements::outputResults()
         
         if(cloud_.boundaries().isAFieldPatch())
         {
-            writePatchFields();
+	  writePatchFields();
         }
     }
 }

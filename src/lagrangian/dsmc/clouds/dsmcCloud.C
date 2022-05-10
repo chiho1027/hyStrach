@@ -1412,12 +1412,27 @@ void Foam::dsmcCloud::postReactionVibrationalRedistribution
   }
   else
   {
+    /*
+    //temp bolzman distribution
+    const scalar TMacro = fields().overallT(0);
+    
+    j = -log(rndGen_.sample01<scalar>())*TMacro
+      /theta[mode];
+
+    scalar bolzEV = j*kBByThetaVP;
+
+    if(bolzEV > Ec)
+    {
+      j = int(Ec/kBByThetaVP);
+    }        
+    */
+    
+    
     scalar func  = 0.0;
     scalar ChiBMinusOne = remainDOF/2.0-1.0;
     if(ChiBMinusOne == 0.0)
     {
       j = randomLabel(0, iMaxProduct);
-      //temp = rndGen_.sample01<scalar>();
     }
     else
     {      
@@ -1426,11 +1441,10 @@ void Foam::dsmcCloud::postReactionVibrationalRedistribution
 	j    = randomLabel(0, iMaxProduct);
 	//temp = rndGen_.sample01<scalar>();
 	func = pow(1.0 - j*kBByThetaVP/Ec ,ChiBMinusOne);
-	//func = pow(1.0 - temp ,ChiBMinusOne);
+
       }while(func < rndGen_.sample01<scalar>());            
-    }
+    }   
     
-    //j = temp*Ec/kBByThetaVP;
   }
   
   
@@ -1450,6 +1464,7 @@ Foam::label Foam::dsmcCloud::postCollisionVibrationalEnergyLevel
     const scalar omega,
     const scalar Zref,
     const scalar Ec,
+    const scalar correctZFactor,
     const scalar fixedZv,
     const label invZvFormulation,
     const label cellI
@@ -1525,7 +1540,7 @@ Foam::label Foam::dsmcCloud::postCollisionVibrationalEnergyLevel
                 // it gives a better agreement
                 T = iMax*thetaV/(3.5 - omega);
             }
-
+	    
             const scalar pow1 = pow(thetaD/T, 1./3.) - 1.0;
 
             const scalar pow2 = pow(thetaD/refTempZv, 1./3.) - 1.0;
@@ -1549,18 +1564,69 @@ Foam::label Foam::dsmcCloud::postCollisionVibrationalEnergyLevel
             {
                 inverseVibrationalCollisionNumber = 1.0/(5.0*Zv);
             }
+	    else if(invZvFormulation == 3)
+	    {
+	      const scalarList thetaVList(1, thetaV);
+	      
+	      const scalar tranDof = 2.5 + omega; 
+	      scalar vibDof  = 2.0*temperatureFunction(T,thetaVList);
+	      
+	      inverseVibrationalCollisionNumber =
+		(
+		 1.0 +pow(vibDof, 2.0)*exp(thetaV/T)/(2.0*tranDof) 		 
+		)
+		/Zv;
+	    }	      
             else
             {
                 inverseVibrationalCollisionNumber = 1.0/Zv;
             }
         }
         else
-        {
-            inverseVibrationalCollisionNumber = 1.0/fixedZv;
-        }
+        {	  
+	  inverseVibrationalCollisionNumber =  1.0/(fixedZv);	  
+	}
 
+	/*
+	//correct factor with multi mode
+	  scalar TT = fields().translationalT(cellI);	 	  
+	  //scalar TT = (Ec/physicoChemical::k.value())/(3.5 - omega);	  
+
+	  if(TT <= 0.0)
+	  {
+	    TT = fields().overallT(cellI);	 
+	  }	  	  
+	  
+	  scalar TV = fields().vibrationalT(cellI);
+	  //scalar TV = vibLevel*thetaV/(2.0);
+	  if(TV <= 100.0)
+	  {
+	    TV = 100.0; 
+	  }
+
+	  //calculate Tprim
+	  const scalar error = 1e-10;
+
+	  //initial gess
+	  scalar Tprim = 100.0;
+	  scalar A0    = Tprim;
+	  do
+	  {
+	    A0 = Tprim;
+	    Tprim = 2.0*thetaV*(1.0/(exp(thetaV/TV)-1.0)-1.0/(exp(thetaV/Tprim)-1.0))/(5.0-2.0*omega)+TT;	    
+	    
+	  }while(fabs(Tprim-A0) > error);
+
+	  
+	  const scalar correctZFactor =
+	    2.0*thetaV*(1.0/(exp(thetaV/TT)-1.0)-1.0/(exp(thetaV/TV)-1.0))
+	    /((5.0-2.0*omega)*(TT-Tprim));
+	  */
+
+	  inverseVibrationalCollisionNumber *= correctZFactor;
+	  
         if (inverseVibrationalCollisionNumber > rndGen_.sample01<scalar>())
-        {
+	{
             // post-collision quantum number
             scalar func = 0.0;
             scalar EVib = 0.0;
@@ -1577,9 +1643,139 @@ Foam::label Foam::dsmcCloud::postCollisionVibrationalEnergyLevel
 
             } while(func < rndGen_.sample01<scalar>());
         }
+	
     }
 
     return iDash;
+}
+
+Foam::scalar Foam::dsmcCloud::postCollisionVibrationalEnergyLevelOneMode
+(
+    const label iMax,
+    const scalar thetaV,
+    const scalar thetaD,
+    const scalar refTempZv,
+    const scalar omega,
+    const scalar Zref,
+    const scalar Ec,
+    const scalar correctZFactor,
+    const scalar fixedZv,
+    const label invZvFormulation,
+    const label cellI
+)
+{
+
+    scalar inverseVibrationalCollisionNumber = 1.0;
+
+    if (fixedZv == 0)
+    {
+            //- Temperature used to calculate Zv
+            scalar T = 0;
+            
+            if (invZvFormulation == 0)
+            {
+                //- "Quantised collision temperature" (equation 3, Bird 2010)
+                //  denominator from Bird 5.42
+                T = iMax*thetaV/(3.5 - omega);
+            }
+            else if (invZvFormulation == 1)
+            {
+                //- Macroscopic (overall) temperature
+                const scalar TMacro = fields().overallT(cellI);
+                
+                if (TMacro > SMALL)
+                {
+                    T = TMacro;
+                }
+                else
+                {
+                    //- Collision temperature used instead
+                    //  the pre-2008 formulation is recovered
+                    T = iMax*thetaV/(3.5 - omega);
+                }
+                
+            }
+            else
+            {
+                //- Macroscopic (translational) temperature
+                /*const scalar TMacro = fields().translationalT(cellI);
+                
+                if (TMacro > SMALL)
+                {
+                    T = TMacro;
+                }
+                else
+                {
+                    //- Collision temperature used instead
+                    //  the pre-2008 formulation is recovered
+                    T = iMax*thetaV/(3.5 - omega);
+                }*/ //TODO
+                // Collision temperature for the time being
+                // it gives a better agreement
+                T = iMax*thetaV/(3.5 - omega);
+            }
+	    
+            const scalar pow1 = pow(thetaD/T, 1./3.) - 1.0;
+
+            const scalar pow2 = pow(thetaD/refTempZv, 1./3.) - 1.0;
+            
+            //- vibrational collision number (equation 2, Bird 2010)
+            const scalar ZvP1 = pow(thetaD/T, omega);
+
+            const scalar ZvP2 =
+                pow
+                (
+                    Zref*pow(thetaD/refTempZv, -omega),
+                    pow1/pow2
+                );
+
+            const scalar Zv = ZvP1*ZvP2;
+
+            //- In order to obtain the relaxation rate corresponding to Zv with the collision
+            //  energy-based procedure, the inelastic fraction should be set to about 1/(5Zv)
+            //  Bird 2008 RGD "A Comparison of Collision Energy-Based and Temperature-Based..."
+            if (invZvFormulation == 2)
+            {
+                inverseVibrationalCollisionNumber = 1.0/(5.0*Zv);
+            }
+	    else if(invZvFormulation == 3)
+	    {
+	      const scalarList thetaVList(1, thetaV);
+	      
+	      const scalar tranDof = 2.5 + omega; 
+	      scalar vibDof  = 2.0*temperatureFunction(T,thetaVList);
+	      
+	      inverseVibrationalCollisionNumber =
+		(
+		 1.0 +pow(vibDof, 2.0)*exp(thetaV/T)/(2.0*tranDof) 		 
+		)
+		/Zv;
+	    }	      
+            else
+            {
+                inverseVibrationalCollisionNumber = 1.0/Zv;
+            }
+    }
+    else
+    {	 
+	  inverseVibrationalCollisionNumber =  1.0/(fixedZv);
+    }
+    
+    const scalar test = 1.0/correctZFactor;
+    if(test < 0.1 &&  test> 0.0)
+    {
+      Info << "<0.1  correct  = " << 1.0/correctZFactor << endl;
+    }
+	      
+    if(test > 1.0)
+    {
+      Info << ">1  correct  = " << 1.0/correctZFactor << endl;
+    }
+    
+
+    inverseVibrationalCollisionNumber *=  correctZFactor;
+
+    return inverseVibrationalCollisionNumber;
 }
 
 

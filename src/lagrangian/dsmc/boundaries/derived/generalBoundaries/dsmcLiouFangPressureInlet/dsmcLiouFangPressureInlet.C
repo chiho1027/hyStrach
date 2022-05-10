@@ -62,6 +62,7 @@ dsmcLiouFangPressureInlet::dsmcLiouFangPressureInlet
     previousInletVelocity_(faces_.size(), vector::zero),
     accumulatedParcelsToInsert_(),
     infoCounter_(0),
+    nTimeSteps_(0),
     inletPressure_(),
     inletTemperature_(),
     theta_(),
@@ -106,7 +107,8 @@ void dsmcLiouFangPressureInlet::controlParcelsBeforeMove()
         // loop over all faces of the patch
         forAll(accumulatedParcelsToInsert_[iD], f)
         {
-            vector faceVelocity = inletVelocity_[f];
+	    vector faceVelocity = inletVelocity_[f];
+	    
             scalar faceTemperature = inletTemperature_;
             const label& faceI = faces_[f];
             const label& cellI = cells_[f];
@@ -148,14 +150,16 @@ void dsmcLiouFangPressureInlet::controlParcelsBeforeMove()
 
             //  Wall tangential unit vector. Use the direction between the
             // face centre and the first vertex in the list
-            vector t1 = fC - mesh_.points()[mesh_.faces()[faceI][0]]; 
+            vector t1 = fC - mesh_.points()[mesh_.faces()[faceI][0]];;
+	    
             t1 /= mag(t1);
 
             // Other tangential unit vector.  Rescaling in case face is not
             // flat and n and t1 aren't perfectly orthogonal
             vector t2 = n^t1;
+	    
             t2 /= mag(t2);
-            
+
             /* -----------------------------------------------------------------------------*/
             
             //generate Poisson distributed random number of particles to insert
@@ -241,8 +245,8 @@ void dsmcLiouFangPressureInlet::controlParcelsBeforeMove()
                     );
 
                 // Equivalent to the QA value in Bird's DSMC3.FOR
-                scalar randomScaling = 3.0;
-
+                scalar randomScaling = 3.0;			
+		
                 if (sCosTheta < -3)
                 {
                     randomScaling = mag(sCosTheta) + 1;
@@ -261,7 +265,8 @@ void dsmcLiouFangPressureInlet::controlParcelsBeforeMove()
                     do
                     {
                         uNormalThermal =
-                            randomScaling*(2.0*rndGen.sample01<scalar>() - 1);
+			    randomScaling*(2.0*rndGen.sample01<scalar>() - 1);
+			    //(randomScaling+sCosTheta)*rndGen.sample01<scalar>()-sCosTheta;
 
                         uNormal = uNormalThermal + sCosTheta;
 
@@ -282,16 +287,16 @@ void dsmcLiouFangPressureInlet::controlParcelsBeforeMove()
                     uNormal = sqrt(-log(rndGen.sample01<scalar>()));
                 }
                 
-                vector U =
+                vector U =		  
                     sqrt(physicoChemical::k.value()*faceTemperature/mass)
                     *(
                         rndGen.GaussNormal<scalar>()*t1
                         + rndGen.GaussNormal<scalar>()*t2
                     )
-                    + (t1 & faceVelocity)*t1
-                    + (t2 & faceVelocity)*t2
-                    + mostProbableSpeed*uNormal*n;
-
+		    + (t1 & faceVelocity)*t1
+		    + (t2 & faceVelocity)*t2
+		    + mostProbableSpeed*uNormal*n;		  
+		  
                 scalar ERot = cloud_.equipartitionRotationalEnergy
                 (
                     faceTemperature,
@@ -350,8 +355,8 @@ void dsmcLiouFangPressureInlet::controlParcelsBeforeMove()
         
         infoCounter_ = 0;
     }
-    
-    previousInletVelocity_ = inletVelocity_;
+
+    previousInletVelocity_    = inletVelocity_;
 }
 
 void dsmcLiouFangPressureInlet::controlParcelsBeforeCollisions()
@@ -363,6 +368,8 @@ void dsmcLiouFangPressureInlet::controlParcelsBeforeCollisions()
 
 void dsmcLiouFangPressureInlet::controlParcelsAfterCollisions()
 {
+    nTimeSteps_++;
+  
     const scalar sqrtPi = sqrt(pi);
     
     vectorField momentum(faces_.size(), vector::zero);
@@ -383,13 +390,23 @@ void dsmcLiouFangPressureInlet::controlParcelsAfterCollisions()
             dsmcParcel* p = parcelsInCell[pIC];
                         
             momentum[c] += cloud_.nParticles(celli)*cloud_.constProps(p->typeId()).mass()*p->U();
-            mass[c] += cloud_.nParticles(celli)*cloud_.constProps(p->typeId()).mass();
+            mass[c]     += cloud_.nParticles(celli)*cloud_.constProps(p->typeId()).mass();
         }
 
-        newInletVelocity[c] = momentum[c]/mass[c];
-        
-        inletVelocity_[c] = theta_*newInletVelocity[c] + (1.0 - theta_)*previousInletVelocity_[c];
-    }
+        newInletVelocity[c] = momentum[c]/mass[c];        
+
+	if(nTimeSteps_ == 1)
+	{
+	  Info << "yes1 " << endl;
+	  inletVelocity_[c] = vector(-4470.85,0,0);
+	}
+	else
+	{
+	  Info << "yes2 " << endl;
+	  //inletVelocity_[c] = theta_*newInletVelocity[c] + (1.0 - theta_)*previousInletVelocity_[c];
+	  inletVelocity_[c] = ( ( inletVelocity_[c]*(100-1) ) + newInletVelocity[c] )/100;
+	}	           
+    }    
     
     if(faces_.size() > VSMALL)
     {
@@ -554,8 +571,7 @@ void dsmcLiouFangPressureInlet::setProperties()
 void dsmcLiouFangPressureInlet::setNewBoundaryFields()
 {
 
-}
-
+}  
 
 
 } // End namespace Foam

@@ -1,0 +1,168 @@
+    ////////////////////////strat//////////////////////////////////////    
+   
+    //determine which one vibratinal mode will be activate    
+
+    scalar TMacro = cloud_.fields().overallT(p.cell());
+    
+    label  exciteMode = 0;
+    if(thetaVProduct.size() > 1)
+    {
+      DynamicList<scalar> productExciteP(0,0.0);
+      
+      forAll(thetaVProduct ,m)
+      {	
+	const label iMax = (heatOfReactionRecombinationJoules_)/(physicoChemical::k.value()*thetaVProduct[m]);
+	
+	scalar temp = 0.0;
+	
+	for(label i=0; i<=iMax; i++)
+	{
+	  temp += cloud_.normalizedIncomGamma(2.5-reverseOmega, (iMax-i+1)*thetaVProduct[m]/TMacro)
+	    *exp(-i*thetaVProduct[m]/TMacro)*(1.0-exp(-thetaVProduct[m]/TMacro));
+	}
+	
+	if(temp == 0.0)
+	{
+	  temp = VSMALL;
+	}
+	
+	productExciteP.append(temp);	
+      }
+
+      exciteMode = selectExciteMode(productExciteP);
+    }
+
+    scalar preCollisionEnergy = productThirdBodyTranslationalEnergy + heatOfReactionRecombinationJoules_;
+	
+    //calculate excite mode vibrational energy using translational energy of product + thirdbody to redistribute 
+    const scalar kBByThetaVP = physicoChemical::k.value()*thetaVProduct[exciteMode];
+    const label iMax = preCollisionEnergy/kBByThetaVP;
+    if(iMax == 0)
+    {
+      vibLevelProduct[exciteMode] = 0;
+    }
+    else
+    {
+      scalar func  = 0.0;
+      label  j     =   0;
+ 
+      //select postProuct pre-reaction vibrational level
+      do // acceptance - rejection
+      {
+	  j = cloud_.randomLabel(0, iMax);
+
+	  func =
+	    pow(1.0 - j*kBByThetaVP/preCollisionEnergy , 1.5 - reverseOmega);//reverseOmega
+	  
+      }while(func < cloud_.rndGen().sample01<scalar>() );
+
+      vibLevelProduct[exciteMode] = j;
+      preCollisionEnergy         -= j*kBByThetaVP;
+    }
+
+    
+    //calculate post velocity using remain translational energy of product + thirdbody
+    //vector thirdBodyU = thirdBody.U();//temp
+    
+    scalar relVelProuduct = sqrt(2.0*preCollisionEnergy/mR);
+    cloud_.binaryCollision().postCollisionVelocities
+    (
+     typeIdThirdBody,
+     typeIdRecombinedMole,
+     thirdBody.U(),
+     postCollisionU,
+     relVelProuduct
+    );      
+    
+    //redistribution nonExcite  internal collisional energy
+    scalar collisionEnergy = translationalEnergy;    
+    DynamicList<scalar> equilibriumE(0,0.0);
+
+    //first is vibrational energy , second is rotational energy
+    //calculate pre-collid particles
+    if( cloud_.constProps(typeIdP).type() >= 20)
+    {
+      const scalar ERotP = p.ERot();
+      const scalar EVibP = cloud_.constProps(typeIdP).eVib_tot(p.vibLevel());          
+
+      equilibriumE.append(EVibP);
+      equilibriumE.append(ERotP);      
+    }
+    else if( cloud_.constProps(typeIdQ).type() >= 20)
+    {	
+      const scalar ERotQ = q.ERot();
+      const scalar EVibQ = cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel());
+
+      equilibriumE.append(EVibQ);
+      equilibriumE.append(ERotQ);      
+    }        
+
+    label index               = -1;
+    labelList* vibLevel       = &vibLevelProduct;    
+    forAll(thetaVProduct ,m)
+    {
+      if(m != exciteMode)
+      {
+	index += 1;
+	
+	if(index == 0)
+	{
+	  
+	  collisionEnergy  += equilibriumE[index];
+
+	  //sample with discrete LB // present used
+	  cloud_.postReactionVibrationalRedistribution
+	  (
+	   m,
+	   2.0,
+	   thetaVProduct,
+	   vibLevel,
+	   collisionEnergy
+	   );			  
+	}
+        else
+	{	  
+	  collisionEnergy   += equilibriumE[index];
+	  
+	  scalar ratio = cloud_.rndGen().sample01<scalar>()*collisionEnergy;
+	  vibLevelProduct[m] = int(ratio/(physicoChemical::k.value()*thetaVProduct[m]));	  
+	  collisionEnergy   -=  vibLevelProduct[m]*physicoChemical::k.value()*thetaVProduct[m];	 	  	
+	}
+      }
+      else
+      {
+	continue;
+      }
+    }
+
+    const scalar ERotProduct = collisionEnergy;
+
+    /*
+    //temp    
+    Info << "12H2Ore = "
+	 << vibLevelProduct[0] << " "
+	 << vibLevelProduct[1] << " "
+	 << vibLevelProduct[2] << endl;
+    
+
+    if(exciteMode != 0)
+    {
+      Info <<"12H2Ore0 = " << vibLevelProduct[0] << endl;;
+    }
+
+    if(exciteMode != 1)
+    {
+      Info <<"12H2Ore1 = " << vibLevelProduct[1] << endl;;
+    }
+    if(exciteMode != 2)
+    {
+      Info <<"12H2Ore2 = " << vibLevelProduct[2] << endl;;
+    }
+    
+    relax_ = true;
+    return;
+    */
+      
+    //Info <<"2OHre = " << vibLevelProduct[0] << endl;
+
+    /////////////////////end////////////////////////////////

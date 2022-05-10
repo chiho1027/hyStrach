@@ -147,6 +147,8 @@ boundaries/derived/generalBoundaries/dsmcNewPressureOutletCalculatedMolarFractio
 boundaries/derived/generalBoundaries/dsmcYePressureOutletCalculatedMolarFraction/dsmcYePressureOutletCalculatedMolarFraction.C
 boundaries/derived/generalBoundaries/dsmcWangPressureInlet/dsmcWangPressureInlet.C
 boundaries/derived/generalBoundaries/dsmcMassFlowRateInlet/dsmcMassFlowRateInlet.C
+boundaries/derived/generalBoundaries/dsmcNeumannOutlet/dsmcNeumannOutlet.C
+boundaries/derived/generalBoundaries/dsmcNeumannOutlet2/dsmcNeumannOutlet2.C
 
 /* CYCLIC BOUNDARY MODELS */
 boundaries/derived/cyclicBoundaries/dsmcReflectiveParticleMembranePatch/dsmcReflectiveParticleMembranePatch.C

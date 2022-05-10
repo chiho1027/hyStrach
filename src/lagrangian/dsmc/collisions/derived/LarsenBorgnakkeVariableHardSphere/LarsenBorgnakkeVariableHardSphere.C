@@ -97,6 +97,14 @@ Foam::LarsenBorgnakkeVariableHardSphere::LarsenBorgnakkeVariableHardSphere
     {
         invZvFormulation_ = 1;
     }
+    else if (inverseZvFormulationVersion == "1/5Z")
+    {
+       invZvFormulation_ = 2;
+    }
+    else if (inverseZvFormulationVersion == "correctFactorZc")
+    {
+      invZvFormulation_ = 3;
+    }
 }
 
 
@@ -137,11 +145,17 @@ void Foam::LarsenBorgnakkeVariableHardSphere::collide
             cloud_.constProps(typeIdP).omega()
           + cloud_.constProps(typeIdQ).omega()
         );
-    
-    redistribute(pP, translationalEnergy, omegaPQ, typeIdQ);
-    redistribute(pQ, translationalEnergy, omegaPQ, typeIdP);
-    //redistributeOnlyOneMode(pP, pQ, translationalEnergy ,omegaPQ);
-    
+
+    //if Zr smaller than 5(assme), the overall probability could greater than 1
+    if(rotationalRelaxationCollisionNumber_ < 5)
+    {
+      redistribute(pP, translationalEnergy, omegaPQ, typeIdQ);
+      redistribute(pQ, translationalEnergy, omegaPQ, typeIdP);
+    }
+    else
+    {
+      redistributeOnlyOneMode(pP, pQ, translationalEnergy ,omegaPQ);
+    }
 
     //- Rescale the translational energy
     cR = sqrt(2.0*translationalEnergy/mR);
@@ -217,8 +231,15 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
 	  partnerIndex = cP.ZrefPartnerMIndex();
 	}
 	
+	//calculate correction Z fector
+	
+	
+	//if(1.0/vibrationalRelaxationCollisionNumber_ > cloud_.rndGen().sample01<scalar>())
+	//{
 	forAll(thetaVP, i)
 	{
+	  //label i = cloud_.randomLabel(0, thetaVP.size()-1);
+	
             //- Collision energy of particle P: relative translational energy 
             //    + pre-collision vibrational energy
             const scalar EcP = translationalEnergy + preCollisionEVibP[i]; 
@@ -226,8 +247,10 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
             //- Maximum possible quantum level (equation 3, Bird 2010)
             const label iMaxP = EcP/(physicoChemical::k.value()*thetaVP[i]);
 
+	    const scalar correctZFactorP = cloud_.fields().correctZFactor(p.cell(), typeIdP, i);
+	    
             if (iMaxP > 0)
-            {	      
+            {	      	      
                 p.vibLevel()[i] = 
                     cloud_.postCollisionVibrationalEnergyLevel
                     (
@@ -240,14 +263,16 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
                         omegaPQ,
                         ZrefP[partnerIndex][i],
                         EcP,
+			correctZFactorP,
                         vibrationalRelaxationCollisionNumber_,
                         invZvFormulation_,
                         p.cell()
-                    );
+                    );		
 		
                 translationalEnergy = EcP - cP.eVib_m(i, p.vibLevel()[i]);
-            }
-       }
+            }	    
+	}
+	//}
     }    
 
     //- Rotational energy mode for P
@@ -307,54 +332,27 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistributeOnlyOneMode
     const label typeIdQ = q.typeId();
     const dsmcParcel::constantProperties& cP = cloud_.constProps(typeIdP);
     const dsmcParcel::constantProperties& cQ = cloud_.constProps(typeIdQ);
+
+    /*
+    //calculate total P
+    const scalar inverseRotationalCollisionNumber =
+      1.0/(rotationalRelaxationCollisionNumber_);
+
+    cost scalar inverseVibrationalCollisionNumberP =
+      1.0/(vibrationalRelaxationCollisionNumber_);
     
-    //- Vibrational energy mode for P
-    if (cP.nVibrationalModes() > 0)
+    
+    if(R < P)
     {
-        const scalarList& thetaVP = cP.thetaV();  
-        const scalarList& thetaDP = cP.thetaD();
-        const List<scalarList>& ZrefP = cP.Zref();
-        const List<scalarList>& refTempZvP = cP.TrefZv();
-        const scalarList& preCollisionEVibP = cP.eVib(p.vibLevel());
-	label partnerIndex = findIndex(cP.ZrefPartnerId(), typeIdQ);
-	if(partnerIndex == -1)
-	{
-	  partnerIndex = cP.ZrefPartnerMIndex();
-	}
-	
-	forAll(thetaVP, i)
-	{
-            //- Collision energy of particle P: relative translational energy 
-            //    + pre-collision vibrational energy
-            const scalar EcP = translationalEnergy + preCollisionEVibP[i]; 
+      
+    }
+    */
 
-            //- Maximum possible quantum level (equation 3, Bird 2010)
-            const label iMaxP = EcP/(physicoChemical::k.value()*thetaVP[i]);
+    //generate rndon variable R
+    const scalar R = cloud_.rndGen().sample01<scalar>();
 
-            if (iMaxP > 0)
-            {	      
-                p.vibLevel()[i] = 
-                    cloud_.postCollisionVibrationalEnergyLevel
-                    (
-		        0,
-                        p.vibLevel()[i],
-                        iMaxP,
-                        thetaVP[i],
-                        thetaDP[i],
-                        refTempZvP[partnerIndex][i],
-                        omegaPQ,
-                        ZrefP[partnerIndex][i],
-                        EcP,
-                        vibrationalRelaxationCollisionNumber_,
-                        invZvFormulation_,
-                        p.cell()
-                    );
-		
-                translationalEnergy = EcP - cP.eVib_m(i, p.vibLevel()[i]);
-            }
-       }
-    }    
-
+    scalar sumP    = 0.0;
+    
     //- Rotational energy mode for P
     const scalar rotationalDofP = cP.rotationalDegreesOfFreedom();        
     // Larsen Borgnakke rotational energy redistribution part. Using the serial
@@ -369,8 +367,10 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistributeOnlyOneMode
 	1.0/(rotationalRelaxationCollisionNumber_);
       
       const scalar preCollisionERotP = ERotP;
-      
-      if (inverseRotationalCollisionNumber > cloud_.rndGen().sample01<scalar>())
+
+      sumP += inverseRotationalCollisionNumber;
+      //if (inverseRotationalCollisionNumber > cloud_.rndGen().sample01<scalar>())
+      if (sumP > R)
       {
 	  const scalar EcP = translationalEnergy + preCollisionERotP;
 	  const scalar ChiB = 2.5 - omegaPQ;
@@ -381,9 +381,256 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistributeOnlyOneMode
 	  ERotP = energyRatio*EcP;
 	  
 	  translationalEnergy = EcP - ERotP;
-      }
-      
+
+	  return;
+      }  
     }
+
+    //- Rotational energy mode for Q
+    const scalar rotationalDofQ = cQ.rotationalDegreesOfFreedom();        
+    // Larsen Borgnakke rotational energy redistribution part. Using the serial
+    // application of the LB method, as per the INELRS subroutine in Bird's
+    // DSMC0R.FOR
+    if (rotationalDofQ > 0)
+    {
+
+      scalar& ERotQ = q.ERot();
+      
+      const scalar inverseRotationalCollisionNumber =
+	1.0/(rotationalRelaxationCollisionNumber_);
+      
+      const scalar preCollisionERotQ = ERotQ;
+
+      sumP += inverseRotationalCollisionNumber;
+      //if (inverseRotationalCollisionNumber > cloud_.rndGen().sample01<scalar>())
+      if (sumP > R)
+      {
+	  const scalar EcQ = translationalEnergy + preCollisionERotQ;
+	  const scalar ChiB = 2.5 - omegaPQ;
+          
+	  const scalar energyRatio = 
+	    cloud_.postCollisionRotationalEnergy(rotationalDofQ, ChiB);
+	  
+	  ERotQ = energyRatio*EcQ;
+	  
+	  translationalEnergy = EcQ - ERotQ;
+
+	  return;
+      }      
+    }
+
+    
+    //- Vibrational energy mode for P
+    if (cP.nVibrationalModes() > 0)
+    {
+        const scalarList& thetaVP = cP.thetaV();  
+        const scalarList& thetaDP = cP.thetaD();
+        const List<scalarList>& ZrefP = cP.Zref();
+        const List<scalarList>& refTempZvP = cP.TrefZv();
+        const scalarList& preCollisionEVibP = cP.eVib(p.vibLevel());
+	label partnerIndex = findIndex(cP.ZrefPartnerId(), typeIdQ);
+	if(partnerIndex == -1)
+	{
+	  partnerIndex = cP.ZrefPartnerMIndex();
+	}
+
+	forAll(thetaVP, i)
+	{	
+	  //- Collision energy of particle P: relative translational energy 
+            //    + pre-collision vibrational energy
+            const scalar EcP = translationalEnergy + preCollisionEVibP[i]; 
+
+            //- Maximum possible quantum level (equation 3, Bird 2010)
+            const label iMaxP = EcP/(physicoChemical::k.value()*thetaVP[i]);
+
+	    const scalar correctZFactorP = cloud_.fields().correctZFactor(p.cell(), typeIdP, i);
+	    
+            if (iMaxP > 0)
+            {
+	      const scalar inverseVibrationalCollisionNumberP =
+                    cloud_.postCollisionVibrationalEnergyLevelOneMode
+                    (		       
+                        iMaxP,
+                        thetaVP[i],
+                        thetaDP[i],
+                        refTempZvP[partnerIndex][i],
+                        omegaPQ,
+                        ZrefP[partnerIndex][i],
+                        0.0,//Ec not used
+			correctZFactorP,
+                        vibrationalRelaxationCollisionNumber_,
+                        invZvFormulation_,
+                        p.cell()		        
+                    );	      	    
+	      
+	      sumP += inverseVibrationalCollisionNumberP;
+	      if( sumP > R )
+	      {
+		// post-collision quantum number
+		scalar func = 0.0;
+		scalar EVib = 0.0;
+		label iDash = 0;
+		
+		do // acceptance - rejection
+		{
+		  //iDash = rndGen_.position<label>(0, iMax); OLD
+		  iDash = cloud_.randomLabel(0, iMaxP);
+		  
+		  EVib = iDash*physicoChemical::k.value()*thetaVP[i];
+		  
+		  // - equation 5.61, Bird
+		  func = pow(1.0 - EVib/EcP, 1.5 - omegaPQ);
+		  
+		} while(func < cloud_.rndGen().sample01<scalar>());
+		
+		p.vibLevel()[i] = iDash;
+	      
+		translationalEnergy = EcP - cP.eVib_m(i, p.vibLevel()[i]);
+		
+		return;
+	      }
+
+	    }//end iMax
+	    
+	}//end for      
+    }
+    
+    
+    //- Vibrational energy mode for Q
+    if (cQ.nVibrationalModes() > 0)
+    {
+      
+        const scalarList& thetaVQ = cQ.thetaV();  
+        const scalarList& thetaDQ = cQ.thetaD();
+        const List<scalarList>& ZrefQ = cQ.Zref();
+        const List<scalarList>& refTempZvQ = cQ.TrefZv();
+        const scalarList& preCollisionEVibQ = cQ.eVib(q.vibLevel());
+	label partnerIndex = findIndex(cQ.ZrefPartnerId(), typeIdP);
+	if(partnerIndex == -1)
+	{
+	  partnerIndex = cQ.ZrefPartnerMIndex();
+	}
+		
+	forAll(thetaVQ, i)
+	{	
+	  
+	  //- Collision energy of particle Q: relative translational energy 
+            //    + pre-collision vibrational energy
+            const scalar EcQ  = translationalEnergy + preCollisionEVibQ[i]; 
+
+            //- Maximum possible quantum level (equation 3, Bird 2010)
+            const label iMaxQ = EcQ/(physicoChemical::k.value()*thetaVQ[i]);
+
+	    const scalar correctZFactorQ = cloud_.fields().correctZFactor(q.cell(), typeIdQ, i);
+	    
+            if (iMaxQ > 0)
+            {
+	      const scalar inverseVibrationalCollisionNumberQ =
+                    cloud_.postCollisionVibrationalEnergyLevelOneMode
+                    (		       
+                        iMaxQ,
+                        thetaVQ[i],
+                        thetaDQ[i],
+                        refTempZvQ[partnerIndex][i],
+                        omegaPQ,
+                        ZrefQ[partnerIndex][i],
+                        0.0,//Ec not used
+			correctZFactorQ,
+                        vibrationalRelaxationCollisionNumber_,
+                        invZvFormulation_,
+                        q.cell()		        
+                    );
+
+	      sumP += inverseVibrationalCollisionNumberQ;
+	      
+	      if( sumP > R)
+	      {		
+		// post-collision quantum number
+		scalar func = 0.0;
+		scalar EVib = 0.0;
+		label iDash = 0;
+		
+		do // acceptance - rejection
+		{
+		  //iDash = rndGen_.position<label>(0, iMax); OLD
+		  iDash = cloud_.randomLabel(0, iMaxQ);
+	      
+		  EVib = iDash*physicoChemical::k.value()*thetaVQ[i];
+		  
+		  // - equation 5.61, Bird
+		  func = pow(1.0 - EVib/EcQ, 1.5 - omegaPQ);
+		  
+		} while(func < cloud_.rndGen().sample01<scalar>());
+		
+		q.vibLevel()[i] = iDash;
+		
+		translationalEnergy = EcQ - cQ.eVib_m(i, q.vibLevel()[i]);
+
+		 return;
+	      }	    
+	    }	  
+	} 
+
+	/*
+	forAll(thetaVQ, i)
+	{
+            //- Collision energy of particle Q: relative translational energy 
+            //    + pre-collision vibrational energy
+            const scalar EcQ = translationalEnergy + preCollisionEVibQ[i]; 
+
+            //- Maximum possible quantum level (equation 3, Bird 2010)
+            const label iMaxQ = EcQ/(physicoChemical::k.value()*thetaVQ[i]);
+
+            if (iMaxQ > 0)
+            {	      
+	      const scalar inverseVibrationalCollisionNumberQ =
+                    cloud_.postCollisionVibrationalEnergyLevelOneMode
+                    (		       
+                        iMaxQ,
+                        thetaVQ[i],
+                        thetaDQ[i],
+                        refTempZvQ[partnerIndex][i],
+                        omegaPQ,
+                        ZrefQ[partnerIndex][i],
+                        EcQ,			
+                        vibrationalRelaxationCollisionNumber_,
+                        invZvFormulation_,
+                        q.cell()		        
+                    );
+
+	      label iDash = 0;
+	      
+	      sumP += inverseVibrationalCollisionNumberQ;		    
+	      if(sumP > R)		      
+	      {
+		// post-collision quantum number
+		scalar func = 0.0;
+		scalar EVib = 0.0;
+		      
+		do // acceptance - rejection
+		{
+		  //iDash = rndGen_.position<label>(0, iMax); OLD
+		  iDash = cloud_.randomLabel(0, iMaxQ);
+		  
+		  EVib = iDash*physicoChemical::k.value()*thetaVQ[i];
+		  
+		  // - equation 5.61, Bird
+		  func = pow(1.0 - EVib/EcQ, 1.5 - omegaPQ);
+		  
+		} while(func < cloud_.rndGen().sample01<scalar>());
+
+		q.vibLevel()[i] = iDash;
+
+		translationalEnergy = EcQ - cQ.eVib_m(i, q.vibLevel()[i]);
+
+		return;
+	      }
+            }
+       }
+	*/
+	
+    }
+
     
 }
 

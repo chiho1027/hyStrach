@@ -354,6 +354,7 @@ void recombinationQK::testRecombination
   {
     reactionProbability = 1.0;
   }
+
 }// end test
 
 void recombinationQK::recombination
@@ -378,7 +379,7 @@ void recombinationQK::recombination
   
   if (allowSplitting_)
   {    
-    //if reaction happen relax is true
+    //if reaction happen relax is false
     relax_ = false;
     
     //temp
@@ -393,7 +394,7 @@ void recombinationQK::recombination
     //product information
     //const scalar&     omegaProduct         = cloud_.constProps(typeIdRecombinedMole).omega();
     const label&      typeIdRecombinedMole = productIdRecombination_;
-    const scalar&     rotDofProduct        = cloud_.constProps(typeIdRecombinedMole).rotationalDegreesOfFreedom();
+    const scalar&     rotDofProduct        = cloud_.constProps(typeIdRecombinedMole).rotationalDegreesOfFreedom();    
     const scalarList& thetaVProduct        = cloud_.constProps(typeIdRecombinedMole).thetaV();
 
     //product initialize
@@ -402,60 +403,17 @@ void recombinationQK::recombination
     //translational Energy for pq + thirdbody
     const scalar mThirdBody = cloud_.constProps(typeIdThirdBody).mass();
     const scalar mR = (mQ+mP)*mThirdBody/((mQ+mP) + mThirdBody);
-    //const scalar mR = (mQ)*mThirdBody/((mQ) + mThirdBody);
-    //const scalar mR = mQ*mThirdBody/(mQ + mThirdBody);
     const scalar cRsqr = magSqr(postCollisionU - thirdBody.U());
-    const scalar productThirdBodyTranslationalEnergy = 0.5*mR*cRsqr;
-    
+    const scalar productThirdBodyTranslationalEnergy = 0.5*mR*cRsqr;    
     const scalar reverseOmega =
       0.5*(
 	   + cloud_.constProps(typeIdRecombinedMole).omega()
 	   + cloud_.constProps(typeIdThirdBody).omega()
 	   );    
-    
+
+    ////////////////////////start//////////////////////////////////////    
     //determine which one vibratinal mode will be activate    
-
-    /*
-    if(preCollisionEnergy != 0.0)
-    {
-    scalar noOfKT =
-      (preCollisionEnergy/(0.05*physicoChemical::k.value()*4000.0));
-      //(productThirdBodyTranslationalEnergy/(0.05*physicoChemical::k.value()*4000.0));
-			  
-     scalar colliDifference = noOfKT-int(noOfKT);
-     if(colliDifference < 0.1 )
-       {			    
-	 Info << "EcPost = "
-	      << int(noOfKT)
-	      << endl;
-       }
-     else if( colliDifference >  0.9 )
-       {	    
-	 Info << "EcPost = "
-	      << int(noOfKT)+1
-	      << endl;
-       }
-    }
-    */
-
-    /*
-    labelList  Level(thetaVProduct.size(), 0);
-    scalarList tranTest(thetaVProduct.size(), 0.0);
-    scalar newE = 0.0;
-
-    forAll(thetaVProduct, m)
-    {
-      do
-      {
-	Level[m]    = -log(cloud_.rndGen().sample01<scalar>())*4000.0/thetaVProduct[m];
-	tranTest[m] = cloud_.equipartitionRotationalEnergy(4000.0,5.0-2.0*reverseOmega);
-	newE     = tranTest[m]+Level[m]*physicoChemical::k.value()*thetaVProduct[m];
-      }while(newE <= heatOfReactionRecombinationJoules_);
-    }
-    */
-
-    scalar TMacro = cloud_.fields().overallT(p.cell());
-    
+    scalar TMacro = cloud_.fields().overallT(p.cell());    
     label  exciteMode = 0;
     if(thetaVProduct.size() > 1)
     {
@@ -469,36 +427,23 @@ void recombinationQK::recombination
 	
 	for(label i=0; i<=iMax; i++)
 	{
-	  //temp += cloud_.normalizedIncomGamma(2.5-reverseOmega, (heatOfReactionRecombinationJoules_)/(physicoChemical::k.value()*4000.0)-i*thetaVProduct[m]/4000.0)
-	  //  *exp(-i*thetaVProduct[m]/4000.0)*(1.0-exp(-thetaVProduct[m]/4000.0));
 	  temp += cloud_.normalizedIncomGamma(2.5-reverseOmega, (iMax-i+1)*thetaVProduct[m]/TMacro)
 	    *exp(-i*thetaVProduct[m]/TMacro)*(1.0-exp(-thetaVProduct[m]/TMacro));
 	}
 	
 	if(temp == 0.0)
-	  {
-	    temp = VSMALL;
-	  }
+	{
+	  temp = VSMALL;
+	}
 	
-	productExciteP.append(temp);
-       
+	productExciteP.append(temp);	
       }
 
       exciteMode = selectExciteMode(productExciteP);
     }
 
-    //const label iMaxExciteMode = (heatOfReactionRecombinationJoules_)/(physicoChemical::k.value()*thetaVProduct[exciteMode]);    
-    scalar preCollisionEnergy = productThirdBodyTranslationalEnergy + heatOfReactionRecombinationJoules_;//iMaxExciteMode*physicoChemical::k.value()*thetaVProduct[exciteMode];
+    scalar preCollisionEnergy = productThirdBodyTranslationalEnergy + heatOfReactionRecombinationJoules_;
 	
-    //preCollisionEnergy += Level[exciteMode]*physicoChemical::k.value()*thetaVProduct[exciteMode];
-    //preCollisionEnergy = tranTest[exciteMode] + Level[exciteMode]*physicoChemical::k.value()*thetaVProduct[exciteMode];
-    /*
-    if(preCollisionEnergy <= heatOfReactionRecombinationJoules_)
-    {
-	return;
-    }
-    */
-    
     //calculate excite mode vibrational energy using translational energy of product + thirdbody to redistribute 
     const scalar kBByThetaVP = physicoChemical::k.value()*thetaVProduct[exciteMode];
     const label iMax = preCollisionEnergy/kBByThetaVP;
@@ -525,7 +470,10 @@ void recombinationQK::recombination
       preCollisionEnergy         -= j*kBByThetaVP;
     }
 
+    
     //calculate post velocity using remain translational energy of product + thirdbody
+    //vector thirdBodyU = thirdBody.U();//temp
+    
     scalar relVelProuduct = sqrt(2.0*preCollisionEnergy/mR);
     cloud_.binaryCollision().postCollisionVelocities
     (
@@ -534,123 +482,53 @@ void recombinationQK::recombination
      thirdBody.U(),
      postCollisionU,
      relVelProuduct
-    );  
+    );      
     
     //redistribution nonExcite  internal collisional energy
-    scalar collisionEnergy = 0.0;
+    scalar collisionEnergy = translationalEnergy;    
+    scalar remainDof       = 2.0;
     
+    //first is vibrational energy , second is rotational energy
     //calculate pre-collid particles
     if( cloud_.constProps(typeIdP).type() >= 20)
     {
       const scalar ERotP = p.ERot();
-      const scalar EVibP = cloud_.constProps(typeIdP).eVib_tot(p.vibLevel());
-    
-      if( cloud_.constProps(typeIdQ).type() >= 20)
-      {
-	// A, B = molecule
-	const scalar ERotQ = q.ERot();
-	const scalar EVibQ = cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel());
-	
-	collisionEnergy =  translationalEnergy + ERotP + ERotQ + EVibP + EVibQ;
-      }
-      else
-      {
-	// A = molecule, B = atom
-	collisionEnergy =  translationalEnergy + ERotP + EVibP;
-      }
-    }
-    else
-    {
-      if( cloud_.constProps(typeIdQ).type() >= 20)
-      {
-	// A = atom, B = molecule
-	const scalar ERotQ = q.ERot();
-	const scalar EVibQ = cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel());
-	
-	collisionEnergy =  translationalEnergy + ERotQ + EVibQ;
-      }
-      else
-      {
-	// A, B are both atom
-	collisionEnergy =  translationalEnergy;
-      }
-    }    
-    
-    // calculate TMacro
-    //scalar     remainDOF  = rotDofProduct + (thetaVProduct.size()-1 + 2.5 - reverseOmega)*2.0;
-
-    //original
-    //scalar     remainDOF  = 0 + (thetaVProduct.size()-1 + 2.5 - omegaPQ)*2.0;
-    //scalar     remainDOF  = ( 2.5 - omegaPQ )*2.0;
-
-    //Info << "origal = " << remainDOF << endl;
-    //Info << "target = " << rotDofProduct + (thetaVProduct.size()-1)*2.0 << endl;
-    //collisionEnergy = translationalEnergy
-    
-    
-    //collisionEnergy =  translationalEnergy + cloud_.constProps(typeIdP).eVib_tot(p.vibLevel()) + cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel())
-    //  + int(-log(cloud_.rndGen().sample01<scalar>())*4000.0/5360.0)*physicoChemical::k.value()*5360.0;
-    
-    
-    //target
-    scalar     remainDOF  = rotDofProduct + (thetaVProduct.size()-1)*2.0;
-    
-    //collisionEnergy = translationalEnergy;
+      const scalar EVibP = cloud_.constProps(typeIdP).eVib_tot(p.vibLevel());                
+      const scalar& pRDof = cloud_.constProps(typeIdP).rotationalDegreesOfFreedom();
+      const scalarList& thetaVP = cloud_.constProps(typeIdP).thetaV();	 
       
-    //scalar     remainDOF  = rotDofProduct + (thetaVProduct.size()-1.0 + 2.5 - omegaPQ)*2.0;
-    labelList* vibLevel   = &vibLevelProduct;
+      collisionEnergy += EVibP + ERotP;
+      remainDof       += pRDof + 2.0*cloud_.temperatureFunction(TMacro, thetaVP);
+    }
+    
+    if( cloud_.constProps(typeIdQ).type() >= 20)
+    {	
+      const scalar ERotQ = q.ERot();
+      const scalar EVibQ = cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel());
+      const scalar& qRDof = cloud_.constProps(typeIdQ).rotationalDegreesOfFreedom();
+      const scalarList& thetaVQ = cloud_.constProps(typeIdQ).thetaV();	  
+      
+      collisionEnergy += EVibQ + ERotQ;
+      remainDof       += qRDof + 2.0*cloud_.temperatureFunction(TMacro, thetaVQ);
+    }        
+
+    labelList* vibLevel  = &vibLevelProduct;    
     forAll(thetaVProduct ,m)
     {
       if(m != exciteMode)
       {
-	remainDOF -= 2.0;   
-
-	/*
-	label j    = 0;	
-	const scalar kToTheta = physicoChemical::k.value()*thetaVProduct[m];	    
-	j = -log(cloud_.rndGen().sample01<scalar>())*4000.0/thetaVProduct[m];
-
-	(*vibLevel)[m]  = j;
-	collisionEnergy   -= j*kToTheta;
-	  */
-
-	/*
-	if(n == 1)
-	{
-	  const scalar rotE =  cloud_.constProps(typeIdP).eVib_tot(p.vibLevel()) + cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel());
-	  margan = collisionEnergy +  rotE;
-	  collisionEnergy += rotE;//int((rotE)/(thetaVProduct[m]*physicoChemical::k.value()))*physicoChemical::k.value()*thetaVProduct[m];//int((cloud_.constProps(typeIdP).eVib_tot(p.vibLevel()) + cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel()))/(thetaVProduct[m]*physicoChemical::k.value()))*physicoChemical::k.value()*thetaVProduct[m];//cloud_.constProps(typeIdP).eVib_tot(p.vibLevel()) + cloud_.constProps(typeIdQ).eVib_tot(q.vibLevel());
-	  margan -=  collisionEnergy;
-	}
-	else if(n == 2)
-	{
-	  margan = collisionEnergy + p.ERot() + q.ERot();
-	  //collisionEnergy += int((p.ERot() + q.ERot())/(thetaVProduct[m]*physicoChemical::k.value()))*physicoChemical::k.value()*thetaVProduct[m];
-	  collisionEnergy += int((p.ERot() + q.ERot())/(5360.0*physicoChemical::k.value()))*physicoChemical::k.value()*5360.0;
-	  margan -=  collisionEnergy;
-	}	
-	*/
-	/*
-	const scalar energyRatio =
-	  cloud_.postCollisionRotationalEnergy
-	  (
-	   2,
-	   remainDOF/2.0
-	  );
-	(*vibLevel)[m] = collisionEnergy*energyRatio/(physicoChemical::k.value()*thetaVProduct[m]);
-	collisionEnergy   -= (*vibLevel)[m]*(physicoChemical::k.value()*thetaVProduct[m]);
-	*/
-	  	
+	const scalarList thetaVMode(1, thetaVProduct[m]);
+	remainDof -= 2.0*cloud_.temperatureFunction(TMacro, thetaVMode);
+	
+	//sample with discrete LB // present used
 	cloud_.postReactionVibrationalRedistribution
 	(
 	 m,
-	 remainDOF,
+	 remainDof,
 	 thetaVProduct,
 	 vibLevel,
 	 collisionEnergy
-	);       
-	
-	//collisionEnergy += margan;		
+	);			  
       }
       else
       {
@@ -659,65 +537,9 @@ void recombinationQK::recombination
     }
 
     const scalar ERotProduct = collisionEnergy;
-
     
-    //Info << "birdH2Ore = "
-
-      /*
-    forAll(thetaVProduct, m)
-      {
-	if(m != exciteMode)
-	{
-	  Info << vibLevelProduct[m] << " ";
-	}
-	else
-	  {
-	    Info << -1 << " ";
-	  }
-      }
-    Info << endl;
-      
-    
-	 << vibLevelProduct[0] << " "
-	 << vibLevelProduct[1] << " "
-	 << vibLevelProduct[2] << endl;    
-      */
-      
-    // << vibLevelProduct[0] << endl;
-    //return;
-    
-
-    /*
-    //- Trial L-B redistribution (rotation)
-    const scalar energyRatio =
-      cloud_.postCollisionRotationalEnergy
-      (
-        rotDofProduct,
-        2.5 - reverseOmega
-	or
-	2.5 - omegaPQ
-      );
-    const scalar ERotProduct = energyRatio*collisionEnergy;
-    //- Relative translational energy after rotational energy redistribution
-    collisionEnergy -= ERotProduct;
-    */
-
-    ////////////////////////////////////////////////
-    // determine pos velocity
-    //const scalar relVelExchMol = sqrt(2.0*collisionEnergy/cloud_.constProps(typeIdRecombinedMole).mass());
-
-    // Variable Hard Sphere collision part for collision of molecules
-    //const scalar cosTheta = 2.0*cloud_.rndGen().sample01<scalar>() - 1.0;
-    //const scalar sinTheta = sqrt(1.0 - cosTheta*cosTheta);
-    //const scalar phi = twoPi*cloud_.rndGen().sample01<scalar>();    
-    //const vector& postCollisionU =
-    //  relVelExchMol
-    // *vector
-    // (
-    //  cosTheta,
-    //   sinTheta*cos(phi),
-    //   sinTheta*sin(phi)
-    //  );
+    /////////////////////end////////////////////////////////
+ 
    
     const vector& position = p.position();    
     label cell = -1;
@@ -956,7 +778,7 @@ void recombinationQK::reaction
   //  If P is the first reactant A
   //  Q is necessarily B otherwise this class would not have been selected
   if(typeIdP == reactantIds_[0])
-  {
+  {    
     //find thirdBody Index 
     const label  nR = findIndex( thirdBodyId_, thirdBody.typeId());
     
@@ -1000,12 +822,34 @@ void recombinationQK::reaction
        nR,
        reactionProbabilities[0]
     );
-    totalReactionProbability += reactionProbabilities[0];
+    totalReactionProbability += reactionProbabilities[0];   
+
     
     // Decide if an recombinaiton reaction is to occur
     if (totalReactionProbability > cloud_.rndGen().sample01<scalar>())
-    {      
+    {
+      /*
+      scalar noOfKT = translationalEnergy 		    
+	/(0.05*physicoChemical::k.value()*7000.0);
+      
+      scalar colliDifference = noOfKT-int(noOfKT);	     
+      
+      if(colliDifference < 0.1 )
+	{				    
+	  Info << "eqTotalDis = "
+	       << int(noOfKT)
+	       << endl;
+	}
+      else if( colliDifference >  0.9 )
+	{	    
+	  Info << "eqTotalDis = "
+	       << int(noOfKT)+1
+	       << endl;
+	}
+      */
+      
       recombination(p, q, thirdBody, nR, translationalEnergy);
+
     }
   }
   else

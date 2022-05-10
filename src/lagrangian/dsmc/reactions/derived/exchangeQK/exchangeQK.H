@@ -80,6 +80,7 @@ protected:
         labelList nExchangeReactionsPerTimeStep_;
        
         scalarList heatOfReactionExchangeJoules_;
+  
         List<scalarList> aCoeff_;
         List<scalarList> bCoeff_;
 
@@ -146,6 +147,25 @@ protected:
 	    scalar& reactionProbability,
 	    DynamicList<scalar>& reactPDiffVibMode
         );
+
+        void testExchange
+        (
+	    const dsmcParcel& p,
+            const scalar translationalEnergy,
+            const scalar omegaPQ,
+	    const label nExIndex,
+	    const label selectMode,
+	    scalar& reactionProbability
+        );
+
+        void exchange
+	(
+	 dsmcParcel& p,
+	 dsmcParcel& q,
+	 const label selectMode,
+	 const label nExIndex,
+	 const scalar translationalEnergy
+	);  
   
         void exchange
 	(

@@ -203,7 +203,18 @@ public:
 
         void updateBoundaryProperties(const dictionary&);
 
+        scalar leastSquaresGradPredictValue
+	(
+	 const scalarField& pp,
+	 const scalar sum
+	);
 
+        vector leastSquaresGradPredictValue
+	(
+	 const vectorField& pp,
+	 const vector sum
+	 );
+  
         // Access
 
             const labelList& controlPatch() const;
