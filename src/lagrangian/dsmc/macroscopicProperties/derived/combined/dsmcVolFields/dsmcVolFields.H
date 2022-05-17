@@ -104,6 +104,7 @@ protected:
         volTensorField shearStressTensor_;
         scalar nTimeSteps_;
         labelList typeIds_;
+        labelList calculateEachTimeStep_;
         scalarField rhoNMean_;
         scalarField rhoNInstantaneous_;
         scalarField rhoNMeanXnParticle_;
@@ -188,7 +189,6 @@ protected:
         List<vectorField> t2_;
 
         bool needCalculateEachTimeStep_;
-        bool calculateEachTimeStep_;
         bool averagingAcrossManyRuns_;
         bool measureClassifications_;
         bool measureMeanFreePath_;

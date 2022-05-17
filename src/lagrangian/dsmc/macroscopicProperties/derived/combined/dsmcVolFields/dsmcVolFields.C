@@ -578,6 +578,7 @@ dsmcVolFields::dsmcVolFields
     ),
     nTimeSteps_(0.0),
     typeIds_(),
+    calculateEachTimeStep_(),
     rhoNMean_(mesh_.nCells(), 0.0),
     rhoNInstantaneous_(mesh_.nCells(), 0.0),
     rhoNMeanXnParticle_(mesh_.nCells(), 0.0),
@@ -647,7 +648,6 @@ dsmcVolFields::dsmcVolFields
     t1_(),
     t2_(),
     needCalculateEachTimeStep_(false),
-    calculateEachTimeStep_(false),
     averagingAcrossManyRuns_(false),
     measureClassifications_(false),
     measureMeanFreePath_(false),
@@ -946,7 +946,7 @@ void dsmcVolFields::createField()
 
     if(needCalculateEachTimeStep_)
     {
-      calculateEachTimeStep_ = true;
+      calculateEachTimeStep_.setSize(mesh_.nCells(), 1);
     }
           
     //- read in stored data from dictionary
@@ -976,7 +976,10 @@ void dsmcVolFields::calculateField()
 
     if(needCalculateEachTimeStep_)
     {
-      calculateEachTimeStep_ = true;
+      forAll(calculateEachTimeStep_, i)
+      {
+	calculateEachTimeStep_[i] = 1;
+      }
     }
       
     sampleCounter_++;
@@ -2824,7 +2827,7 @@ void dsmcVolFields::updateProperties(const dictionary& newDict)
 
 scalar dsmcVolFields::overallT(const label cell)
 {
-  if( calculateEachTimeStep_ )
+  if( calculateEachTimeStep_[cell] )
   {
     const scalar kB = physicoChemical::k.value();
 
@@ -3038,7 +3041,8 @@ scalar dsmcVolFields::overallT(const label cell)
     ) /
     (3.0 + totalrDof + totalvDof_[cell] );
 
-    calculateEachTimeStep_ = false;
+    //change to false
+    calculateEachTimeStep_[cell] = 0;
     
     return overallT_[cell];
   }
