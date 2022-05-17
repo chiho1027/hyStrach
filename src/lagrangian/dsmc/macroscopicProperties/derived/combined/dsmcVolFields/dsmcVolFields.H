@@ -186,7 +186,9 @@ protected:
         List<vectorField> n_;
         List<vectorField> t1_;
         List<vectorField> t2_;
-        
+
+        bool needCalculateEachTimeStep_;
+        bool calculateEachTimeStep_;
         bool averagingAcrossManyRuns_;
         bool measureClassifications_;
         bool measureMeanFreePath_;

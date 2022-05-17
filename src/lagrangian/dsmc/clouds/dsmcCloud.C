@@ -1759,18 +1759,7 @@ Foam::scalar Foam::dsmcCloud::postCollisionVibrationalEnergyLevelOneMode
     else
     {	 
 	  inverseVibrationalCollisionNumber =  1.0/(fixedZv);
-    }
-    
-    const scalar test = 1.0/correctZFactor;
-    if(test < 0.1 &&  test> 0.0)
-    {
-      Info << "<0.1  correct  = " << 1.0/correctZFactor << endl;
-    }
-	      
-    if(test > 1.0)
-    {
-      Info << ">1  correct  = " << 1.0/correctZFactor << endl;
-    }
+    }    
     
 
     inverseVibrationalCollisionNumber *=  correctZFactor;

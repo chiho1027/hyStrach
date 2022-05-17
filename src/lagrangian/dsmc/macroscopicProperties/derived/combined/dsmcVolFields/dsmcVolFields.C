@@ -646,6 +646,8 @@ dsmcVolFields::dsmcVolFields
     n_(),
     t1_(),
     t2_(),
+    needCalculateEachTimeStep_(false),
+    calculateEachTimeStep_(false),
     averagingAcrossManyRuns_(false),
     measureClassifications_(false),
     measureMeanFreePath_(false),
@@ -938,7 +940,15 @@ void dsmcVolFields::createField()
     
     averagingAcrossManyRuns_ = 
         propsDict_.lookupOrDefault<bool>("averagingAcrossManyRuns", false);
-        
+
+    needCalculateEachTimeStep_ =
+        propsDict_.lookupOrDefault<bool>("resetAndCalculateEachTimeStep", false);
+
+    if(needCalculateEachTimeStep_)
+    {
+      calculateEachTimeStep_ = true;
+    }
+          
     //- read in stored data from dictionary
     if (averagingAcrossManyRuns_)
     {
@@ -952,6 +962,23 @@ void dsmcVolFields::createField()
 
 void dsmcVolFields::calculateField()
 {
+    //reset correctFactor for each timeStep
+    forAll(correctZFactor_ ,i)
+    {      	
+      forAll(correctZFactor_[i], j)
+      {
+	forAll(correctZFactor_[i][j], k)
+	{
+	  correctZFactor_[i][j][k] = 0.0;
+	}
+      }            
+    } 
+
+    if(needCalculateEachTimeStep_)
+    {
+      calculateEachTimeStep_ = true;
+    }
+      
     sampleCounter_++;
     
     rhoNInstantaneous_ = 0.0;
@@ -986,9 +1013,7 @@ void dsmcVolFields::calculateField()
             }
         }
         else
-        {
-            //scalar timer = mesh_.time().elapsedCpuTime(); // TODO VINCENT
-            
+        {          
             forAllConstIter(dsmcCloud, cloud_, iter)
             {
                 const dsmcParcel& p = iter();
@@ -1195,7 +1220,7 @@ void dsmcVolFields::calculateField()
 
     // time_.time().outputTime() || time_.time().value()==time_.time().deltaT().value()
     if (time_.time().outputTime())
-    {
+    {      
       const scalar nAvTimeSteps = nTimeSteps_;
   
         if (densityOnly_)
@@ -1238,6 +1263,7 @@ void dsmcVolFields::calculateField()
             const label nCells = mesh_.nCells();
      
             vibrationalT_.primitiveFieldRef() = 0.0;
+	    scalarField vibT(nCells, 0.0);
             scalarField vibTForOverallT(nCells, 0.0);
             
             //- Heat capacity at constant volume/(0.5*kB), trans-rotational
@@ -1397,9 +1423,12 @@ void dsmcVolFields::calculateField()
                             totalvDof_[cell]*fractionOverall/fraction;
                         
                         //- TODO
-                        vibrationalT_[cell] += vibTID[i]*fraction;
+                        vibT[cell] += vibTID[i]*fraction;
                     }
+		    
                 }
+
+		vibrationalT_[cell] = vibT[cell];
 
                 //- Electronic energy mode
                 scalar totalEDof = 0.0;
@@ -1565,52 +1594,6 @@ void dsmcVolFields::calculateField()
                     ) /
                     (3.0 + totalrDof + totalvDof_[cell] + totalEDof);
 
-
-		//calculate redistribution of Tt+Tv => postTemperature
-		//assume transaltional of  omega is same as self omega,
-		//omega is small influence in postTemperature.
-		const scalar error = 1e-10;
-		
-		forAll(typeIds_, i)
-		{		  
-		  if( cloud_.constProps(typeIds_[i]).nVibrationalModes() > 0)
-		  {
-		    const scalarList& thetaV = cloud_.constProps(typeIds_[i]).thetaV();
-		    const scalar omega       = cloud_.constProps(typeIds_[i]).omega();
-		    const scalar TT          = translationalT_[cell];
-
-		    //if no particle in cell translationalT = 0
-		    if(TT > 10.0)
-		    {
-		      scalar TV          = vibrationalT_[cell];
-		      //truncate TV if TV-> 0 correctZFactor can't calculate
-		      if(TV <= 100.0)
-		      {
-			TV = 100.0;
-		      }
-		    
-		      forAll(thetaV, j)
-		      {		      
-			//initial gess
-			scalar Tprim = 100.0;
-			scalar A0    = Tprim;
-			
-			do
-			{	   	    
-			  A0 = Tprim;
-			  Tprim = 2.0*thetaV[j]*(1.0/(exp(thetaV[j]/TV)-1.0)-1.0/(exp(thetaV[j]/Tprim)-1.0))/(5.0-2.0*omega)+TT;	    
-			
-			}while(fabs(Tprim-A0) > error);
-			
-			correctZFactor_[cell][i][j] =
-			  2.0*thetaV[j]*(1.0/(exp(thetaV[j]/TT)-1.0)-1.0/(exp(thetaV[j]/TV)-1.0))
-			  /((5.0-2.0*omega)*(TT-Tprim));
-;
-		      }
-		    }
-		  }
-		}
-		
 		////////////////////////////////////////////////////
 		/*
 		Info << "Dr = " << totalrDof << endl;
@@ -2841,7 +2824,7 @@ void dsmcVolFields::updateProperties(const dictionary& newDict)
 
 scalar dsmcVolFields::overallT(const label cell)
 {
-  if( overallT_[cell] == 0)
+  if( calculateEachTimeStep_ )
   {
     const scalar kB = physicoChemical::k.value();
 
@@ -2967,12 +2950,14 @@ scalar dsmcVolFields::overallT(const label cell)
      : 0.0
     );
     
-    //- Vibrational energy mode
+    //- Vibrational energy mode and reset data
+    scalar vibT = 0.0;
     scalarList degreesOfFreedomSpecies(typeIds_.size(), 0.0);
     scalarList vibTID(typeIds_.size(), 0.0);
     List<scalarList> degreesOfFreedomMode(typeIds_.size());
     List<scalarList> vibTMode(typeIds_.size());
-        
+    totalvDof_[cell] = 0.0;
+
     forAll(degreesOfFreedomMode, i)
     {
       degreesOfFreedomMode[i].setSize
@@ -3037,9 +3022,11 @@ scalar dsmcVolFields::overallT(const label cell)
 	  /rhoNMeanInt;
 	      
 	//- TODO
-	vibrationalT_[cell] += vibTID[i]*fraction;
+	vibT += vibTID[i]*fraction;
       }
     }
+
+    vibrationalT_[cell] = vibT;
     
     // without calculate elecT
     //const scalar overallT =
@@ -3050,6 +3037,8 @@ scalar dsmcVolFields::overallT(const label cell)
      + totalvDof_[cell]*vibrationalT_[cell]
     ) /
     (3.0 + totalrDof + totalvDof_[cell] );
+
+    calculateEachTimeStep_ = false;
     
     return overallT_[cell];
   }
@@ -3072,7 +3061,7 @@ scalar dsmcVolFields::correctZFactor
   {
     //calculate vibrationalT_ and transaltionalT_
     overallT_[cellI] = overallT(cellI);
-
+    
     //calculate redistribution of Tt+Tv => postTemperature
     //assume transaltional of  omega is same as self omega,
     //omega is small influence in postTemperature.
