@@ -552,36 +552,38 @@ void exchangeQK::testExchange
 {  
     const label typeIdP = p.typeId();
 
-    scalar TMacro = cloud_.fields().overallT(p.cell());
- 
-    /*
-    if(TMacro == 0.0)
+    scalar activationEnergy = 0.0;
+    if(bCoeff_[nExIndex][0] < -1.5)
     {
-      Pout << "T = 0 !!!!" << endl;
-      TMacro = cloud_.fields().calculateTMacro(p.cell());
+      scalar TMacro = cloud_.fields().overallT(p.cell());
+
+      activationEnergy = 
+      (
+       aCoeff_[nExIndex][0]*pow(TMacro/273.0, bCoeff_[nExIndex][0])
+       *fabs(heatOfReactionExchangeJoules_[nExIndex])
+      );  
     }
-    */
-    
-    //- Collision temperature: Eq.(10) of Bird's QK paper.
-    /*
-    const scalar TColl = (translationalEnergy/physicoChemical::k.value())/(2.5 - omegaPQ);    
-    const scalar aDash = 
+    else
+    {
+      //- Collision temperature: Eq.(10) of Bird's QK paper.    
+      const scalar TColl = (translationalEnergy/physicoChemical::k.value())/(2.5 - omegaPQ);    
+      const scalar aDash = 
         aCoeff_[nExIndex][0]
-       *(
-            pow(2.5 - omegaPQ, bCoeff_[nExIndex][0])
-           *exp(lgamma(2.5 - omegaPQ))
-           /exp(lgamma(2.5 - omegaPQ + bCoeff_[nExIndex][0]))
-        );
-    */
+	*(
+	  pow(2.5 - omegaPQ, bCoeff_[nExIndex][0])
+	  *exp(lgamma(2.5 - omegaPQ))
+	  /exp(lgamma(2.5 - omegaPQ + bCoeff_[nExIndex][0]))
+	 );    
+
+      activationEnergy = 
+      (
+       aDash*pow(TColl/273.0, bCoeff_[nExIndex][0])// changee d aDash
+       *fabs(heatOfReactionExchangeJoules_[nExIndex])
+      );        
+    }       
     
     //modify with probability in endothermic reaction(heat< 0)
-    scalar probabilityModifyFactor = 1.0;
-    
-    scalar activationEnergy = 
-      (
-       aCoeff_[nExIndex][0]*pow(TMacro/273.0, bCoeff_[nExIndex][0])// changee d aDash
-       *fabs(heatOfReactionExchangeJoules_[nExIndex])
-      );    
+    scalar probabilityModifyFactor = 1.0;      
     
     if (heatOfReactionExchangeJoules_[nExIndex] < 0.0) 
     {
