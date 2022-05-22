@@ -247,7 +247,9 @@ void Foam::LarsenBorgnakkeVariableHardSphere::redistribute
             //- Maximum possible quantum level (equation 3, Bird 2010)
             const label iMaxP = EcP/(physicoChemical::k.value()*thetaVP[i]);
 
-	    const scalar correctZFactorP = cloud_.fields().correctZFactor(p.cell(), typeIdP, i);
+	    //set correctZFactor is 1 for Z<5
+	    //const scalar correctZFactorP = cloud_.fields().correctZFactor(p.cell(), typeIdP, i);
+	    const scalar correctZFactorP = 1.0;
 	    
             if (iMaxP > 0)
             {	      	      

@@ -552,7 +552,16 @@ void exchangeQK::testExchange
 {  
     const label typeIdP = p.typeId();
 
-    scalar activationEnergy = 0.0;
+
+    scalar TMacro = cloud_.fields().overallT(p.cell());
+
+    scalar activationEnergy = 
+      (
+       aCoeff_[nExIndex][0]*pow(TMacro/273.0, bCoeff_[nExIndex][0])
+       *fabs(heatOfReactionExchangeJoules_[nExIndex])
+      );  
+    
+    /*
     if(bCoeff_[nExIndex][0] < -1.5)
     {
       scalar TMacro = cloud_.fields().overallT(p.cell());
@@ -566,21 +575,28 @@ void exchangeQK::testExchange
     else
     {
       //- Collision temperature: Eq.(10) of Bird's QK paper.    
-      const scalar TColl = (translationalEnergy/physicoChemical::k.value())/(2.5 - omegaPQ);    
-      const scalar aDash = 
-        aCoeff_[nExIndex][0]
+      const scalar TColl =
+	(translationalEnergy/physicoChemical::k.value())
+	/(2.5 - omegaPQ);
+      
+      //Info << "TColl = " << TColl << endl;
+	
+      const scalar aDash =
+        aCoeff_[nExIndex][0]	
 	*(
-	  pow(2.5 - omegaPQ, bCoeff_[nExIndex][0])
+	  pow((2.5 - omegaPQ), bCoeff_[nExIndex][0])	  
 	  *exp(lgamma(2.5 - omegaPQ))
-	  /exp(lgamma(2.5 - omegaPQ + bCoeff_[nExIndex][0]))
-	 );    
-
+	  /exp(lgamma(2.5 - omegaPQ + bCoeff_[nExIndex][0]))	 	 
+	 );
+	
       activationEnergy = 
       (
        aDash*pow(TColl/273.0, bCoeff_[nExIndex][0])// changee d aDash
        *fabs(heatOfReactionExchangeJoules_[nExIndex])
       );        
-    }       
+    }
+    */
+
     
     //modify with probability in endothermic reaction(heat< 0)
     scalar probabilityModifyFactor = 1.0;      
@@ -591,7 +607,7 @@ void exchangeQK::testExchange
         activationEnergy -= heatOfReactionExchangeJoules_[nExIndex];	
     }
     else
-    {      
+    {
        probabilityModifyFactor = aCoeff_[nExIndex][1];
     }
  
@@ -607,7 +623,8 @@ void exchangeQK::testExchange
 	
 	
     //- Condition for the exchange reaction to possibly occur
-    if(collisionEnergy > activationEnergy)
+    //if(collisionEnergy > activationEnergy)
+    if( collisionEnergy > activationEnergy )
     {
       scalar summation = 0.0;
 
@@ -618,20 +635,23 @@ void exchangeQK::testExchange
       //}
       //else
       //{
-	const label iaP = collisionEnergy/kBByThetaVP;
+
+      const label iaP = collisionEnergy/kBByThetaVP;
 	
-	for(label i=0; i<=iaP; i++)
-	{
-	  summation += 
-	    pow
-	    (
-	     1.0 - cloud_.constProps(typeIdP).eVib_m(m, i)/collisionEnergy,
-	     1.5 - omegaPQ
-	     );
-	}
+      for(label i=0; i<=iaP; i++)
+      {
+	summation += 
+	  pow
+	  (
+	   1.0 - cloud_.constProps(typeIdP).eVib_m(m, i)/collisionEnergy,
+	   1.5 - omegaPQ
+	  );
+      }
+      
+      
       //}
 	
-      //- Based on modified activation energy
+      //- Based on modified activation energy	
       reactionProbability =		
 	probabilityModifyFactor*
 	pow
@@ -660,8 +680,8 @@ void exchangeQK::exchange
     nExchangeReactionsPerTimeStep_[nExIndex]++;
 
     //temp
-    //relax_ = true;
-    //return;      
+    relax_ = true;
+    return;      
     
     if (allowSplitting_)
     {
