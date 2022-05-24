@@ -552,7 +552,7 @@ void exchangeQK::testExchange
 {  
     const label typeIdP = p.typeId();
 
-
+    
     scalar TMacro = cloud_.fields().overallT(p.cell());
 
     scalar activationEnergy = 
@@ -560,8 +560,9 @@ void exchangeQK::testExchange
        aCoeff_[nExIndex][0]*pow(TMacro/273.0, bCoeff_[nExIndex][0])
        *fabs(heatOfReactionExchangeJoules_[nExIndex])
       );  
-    
     /*
+    scalar activationEnergy = 0.0;
+    
     if(bCoeff_[nExIndex][0] < -1.5)
     {
       scalar TMacro = cloud_.fields().overallT(p.cell());
@@ -578,20 +579,20 @@ void exchangeQK::testExchange
       const scalar TColl =
 	(translationalEnergy/physicoChemical::k.value())
 	/(2.5 - omegaPQ);
-      
-      //Info << "TColl = " << TColl << endl;
 	
       const scalar aDash =
         aCoeff_[nExIndex][0]	
 	*(
 	  pow((2.5 - omegaPQ), bCoeff_[nExIndex][0])	  
 	  *exp(lgamma(2.5 - omegaPQ))
-	  /exp(lgamma(2.5 - omegaPQ + bCoeff_[nExIndex][0]))	 	 
+	  /exp(lgamma(2.5 - omegaPQ + bCoeff_[nExIndex][0]))	  
 	 );
 	
       activationEnergy = 
       (
-       aDash*pow(TColl/273.0, bCoeff_[nExIndex][0])// changee d aDash
+       (bCoeff_[nExIndex][0]*(TColl/273.0))
+
+       //aDash*pow(TColl/273.0, bCoeff_[nExIndex][0])// changee d aDash
        *fabs(heatOfReactionExchangeJoules_[nExIndex])
       );        
     }
@@ -680,8 +681,8 @@ void exchangeQK::exchange
     nExchangeReactionsPerTimeStep_[nExIndex]++;
 
     //temp
-    relax_ = true;
-    return;      
+    //relax_ = true;
+    //return;      
     
     if (allowSplitting_)
     {

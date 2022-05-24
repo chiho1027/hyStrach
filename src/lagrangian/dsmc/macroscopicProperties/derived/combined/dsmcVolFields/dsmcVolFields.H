@@ -64,6 +64,8 @@ protected:
         
         label sampleInterval_;
         label sampleCounter_;
+        label resetInterval_;
+	label resetCounter_;
         scalar mfpReferenceTemperature_;
         word fieldName_;
         volScalarField dsmcRhoN_;

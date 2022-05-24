@@ -97,6 +97,8 @@ dsmcVolFields::dsmcVolFields
     propsDict_(dict.subDict(typeName + "Properties")),
     sampleInterval_(1),
     sampleCounter_(0),
+    resetInterval_(1),
+    resetCounter_(0),
     mfpReferenceTemperature_(273.0),
     fieldName_(propsDict_.lookup("fieldName")),
     dsmcRhoN_
@@ -947,6 +949,7 @@ void dsmcVolFields::createField()
     if(needCalculateEachTimeStep_)
     {
       calculateEachTimeStep_.setSize(mesh_.nCells(), 1);
+      resetInterval_ = propsDict_.lookupOrDefault("resetInterval", 1);
     }
           
     //- read in stored data from dictionary
@@ -976,9 +979,16 @@ void dsmcVolFields::calculateField()
 
     if(needCalculateEachTimeStep_)
     {
-      forAll(calculateEachTimeStep_, i)
+      resetCounter_++;
+      
+      if(resetInterval_ <= resetCounter_)
       {
-	calculateEachTimeStep_[i] = 1;
+	forAll(calculateEachTimeStep_, i)
+	{
+	  calculateEachTimeStep_[i] = 1;
+	}
+
+	resetCounter_ = 0;
       }
     }
       
@@ -2828,7 +2838,7 @@ void dsmcVolFields::updateProperties(const dictionary& newDict)
 scalar dsmcVolFields::overallT(const label cell)
 {
   if( calculateEachTimeStep_[cell] )
-  {
+  { 
     const scalar kB = physicoChemical::k.value();
 
     scalar nAvTimeSteps = 1.0;
