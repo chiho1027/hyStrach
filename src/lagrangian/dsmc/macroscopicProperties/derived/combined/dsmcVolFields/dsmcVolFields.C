@@ -951,6 +951,10 @@ void dsmcVolFields::createField()
       calculateEachTimeStep_.setSize(mesh_.nCells(), 1);
       resetInterval_ = propsDict_.lookupOrDefault("resetInterval", 1);
     }
+    else
+    {
+      calculateEachTimeStep_.setSize(mesh_.nCells(), 0);
+    }
           
     //- read in stored data from dictionary
     if (averagingAcrossManyRuns_)
@@ -2836,8 +2840,8 @@ void dsmcVolFields::updateProperties(const dictionary& newDict)
 }
 
 scalar dsmcVolFields::overallT(const label cell)
-{
-  if( calculateEachTimeStep_[cell] )
+{  
+  if( calculateEachTimeStep_[cell] || overallT_[cell] == 0.0)
   { 
     const scalar kB = physicoChemical::k.value();
 
@@ -2864,7 +2868,7 @@ scalar dsmcVolFields::overallT(const label cell)
 	 0.0
         );
     }
-    
+
     forAllConstIter(dsmcCloud, cloud_, iter)
     {
       const dsmcParcel& p = iter();
@@ -2906,7 +2910,7 @@ scalar dsmcVolFields::overallT(const label cell)
 	}  
       }
     }
-	
+
     if (nSimulateParticles > 1e-3)
     {                  
       const scalar cellVolume = mesh_.cellVolumes()[cell];
@@ -2947,7 +2951,7 @@ scalar dsmcVolFields::overallT(const label cell)
       
       //p_[cell] = 0.0;
     }
-    
+  
     //- Rotational energy mode
     const scalar totalrDof 
     (
@@ -2970,7 +2974,7 @@ scalar dsmcVolFields::overallT(const label cell)
     List<scalarList> degreesOfFreedomMode(typeIds_.size());
     List<scalarList> vibTMode(typeIds_.size());
     totalvDof_[cell] = 0.0;
-
+  
     forAll(degreesOfFreedomMode, i)
     {
       degreesOfFreedomMode[i].setSize
@@ -2985,6 +2989,7 @@ scalar dsmcVolFields::overallT(const label cell)
       );
     }
 
+ 
     forAll(typeIds_, i)
     {
       forAll(vibrationalETotal[i], mode)
@@ -3011,7 +3016,7 @@ scalar dsmcVolFields::overallT(const label cell)
 	    degreesOfFreedomSpecies[i] += degreesOfFreedomMode[i][mode];
 	  }
       }
-
+ 
       forAll(degreesOfFreedomMode[i], mode)
       {
 	if (degreesOfFreedomSpecies[i] > SMALL)

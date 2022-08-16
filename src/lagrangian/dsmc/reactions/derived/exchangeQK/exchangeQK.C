@@ -551,7 +551,6 @@ void exchangeQK::testExchange
 )
 {  
     const label typeIdP = p.typeId();
-
     
     scalar TMacro = cloud_.fields().overallT(p.cell());
 
